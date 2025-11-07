@@ -2,287 +2,441 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>KickCraft 3D First Person</title>
+  <title>KickCraft 3D First Person (No modules)</title>
   <style>
-    body { margin: 0; overflow: hidden; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: sans-serif;
+    }
     #ui {
       position: absolute;
       top: 10px;
       left: 10px;
-      color: #fff;
       background: rgba(0, 0, 0, 0.6);
+      color: #fff;
       padding: 8px 12px;
       border-radius: 4px;
-      font-family: sans-serif;
       font-size: 14px;
       pointer-events: none;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
-  <div id="ui">Click to lock pointer. Use W/A/S/D to move, hold mouse to charge, release to shoot. Press Q/E to add spin.</div>
-  <!-- Import Three.js and PointerLockControls as ES modules -->
-  <script type="module">
-  import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
-  import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/PointerLockControls.js';
-
-  let scene, camera, renderer, controls;
-  let player;
-  let keeper, defenders = [];
-
-  // Initialize the scene, camera, renderer, and game objects
-  function init() {
-    scene = new THREE.Scene();
-    // Add a subtle fog for depth
-    scene.fog = new THREE.Fog(0x0a3d24, 50, 300);
-
-    // Set up lights: ambient and a directional for shadows
-    const ambient = new THREE.AmbientLight(0x444444);
-    scene.add(ambient);
-    const dir = new THREE.DirectionalLight(0xffffff, 1);
-    dir.position.set(50, 100, 50);
-    dir.castShadow = true;
-    dir.shadow.mapSize.set(1024, 1024);
-    dir.shadow.camera.left = -80;
-    dir.shadow.camera.right = 80;
-    dir.shadow.camera.top = 80;
-    dir.shadow.camera.bottom = -80;
-    scene.add(dir);
-
-    // Set up renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.outputEncoding = THREE.sRGBEncoding;
-    document.body.appendChild(renderer.domElement);
-
-    // Handle resize
-    window.addEventListener('resize', onResize);
-
-    // Camera and pointer lock controls
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    controls = new PointerLockControls(camera, document.body);
-    document.body.addEventListener('click', () => {
-      if (!controls.isLocked) controls.lock();
-    });
-
-    // Create the pitch (grass) using a texture for realism
-    const pitchWidth = 100;
-    const pitchLength = 160;
-    const planeGeom = new THREE.PlaneGeometry(pitchWidth, pitchLength);
-    // Load a grass texture; note this is an external asset which may be replaced with your own texture
-    const loader = new THREE.TextureLoader();
-    const grassTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/grasslight-big.jpg');
-    grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping;
-    grassTex.repeat.set(6, 10);
-    grassTex.encoding = THREE.sRGBEncoding;
-    const planeMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 1.0, metalness: 0.0 });
-    const plane = new THREE.Mesh(planeGeom, planeMat);
-    plane.rotation.x = -Math.PI / 2;
-    plane.receiveShadow = true;
-    scene.add(plane);
-
-    // Draw center and goal lines using thin boxes
-    const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    function addLine(x1, z1, x2, z2) {
-      const dx = x2 - x1;
-      const dz = z2 - z1;
-      const length = Math.sqrt(dx * dx + dz * dz);
-      const lineGeom = new THREE.BoxGeometry(0.1, 0.1, length);
-      const line = new THREE.Mesh(lineGeom, lineMat);
-      line.position.set((x1 + x2) / 2, 0.05, (z1 + z2) / 2);
-      const angle = Math.atan2(dx, dz);
-      line.rotation.y = angle;
-      scene.add(line);
-    }
-    // Center line
-    addLine(-pitchWidth / 2, 0, pitchWidth / 2, 0);
-    // Goal lines (shorter than pitch width)
-    const goalWidth = 20;
-    addLine(-goalWidth / 2, -pitchLength / 2, goalWidth / 2, -pitchLength / 2);
-    addLine(-goalWidth / 2, pitchLength / 2, goalWidth / 2, pitchLength / 2);
-
-    // Create the soccer ball with a shiny PBR material
-    const ballGeom = new THREE.SphereGeometry(0.6, 32, 32);
-    const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.6 });
-    const ball = new THREE.Mesh(ballGeom, ballMat);
-    ball.castShadow = true;
-    ball.position.set(0, 0.6, 0);
-    scene.add(ball);
-
-    // Initialize player state: ball, velocity, spin, charging flag
-    player = {
-      ball: ball,
-      vel: new THREE.Vector3(),
+  <div id="ui">Click to lock pointer. Use W/A/S/D to move. Hold mouse to charge and release to shoot. Press Q/E to spin.</div>
+  <div id="score" style="position:absolute;top:10px;right:10px;color:#fff;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:4px;font-size:14px;pointer-events:none;z-index:10;">0 - 0</div>
+  <!-- Load Three.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+  <script>
+  (function() {
+    // Scene setup
+    let scene, camera, renderer;
+    let ball, keeper, ourKeeper, defenders = [];
+    let clock = new THREE.Clock();
+    let pointerLocked = false;
+    let yaw = 0, pitch = 0;
+    // Game state
+    const state = {
+      ballVel: new THREE.Vector3(),
       spin: new THREE.Vector3(),
       charging: false,
       chargeStart: 0,
-      keyState: {}
+      keys: {},
+      score: { us: 0, them: 0 },
+      aiCarrier: null
     };
-
-    // Key events to track movement and spin
-    document.addEventListener('keydown', (e) => {
-      player.keyState[e.code] = true;
-      if (e.code === 'KeyQ') player.spin.set(0, 1, 0); // spin left
-      if (e.code === 'KeyE') player.spin.set(0, -1, 0); // spin right
-    });
-    document.addEventListener('keyup', (e) => {
-      player.keyState[e.code] = false;
-      if (e.code === 'KeyQ' || e.code === 'KeyE') player.spin.set(0, 0, 0);
-    });
-
-    // Mouse controls: charge and shoot
-    document.addEventListener('mousedown', (e) => {
-      player.charging = true;
-      player.chargeStart = performance.now();
-    });
-    document.addEventListener('mouseup', (e) => {
-      if (player.charging) {
-        const now = performance.now();
-        const chargeDuration = now - player.chargeStart;
-        const power = Math.min(chargeDuration / 1000, 1.0);
-        const shootDir = new THREE.Vector3();
-        camera.getWorldDirection(shootDir);
-        shootDir.y = 0;
-        shootDir.normalize();
-        player.vel.copy(shootDir).multiplyScalar(power * 25);
-        player.charging = false;
+    // Levels: increase difficulty every time we reach a threshold
+    let level = 1;
+    let goalsForNext = 2;
+    function advanceLevel() {
+      level++;
+      // Increase difficulty gradually
+      goalsForNext += 1;
+      keeper.userData.maxSpeed = (keeper.userData.maxSpeed || 12) + 4;
+      ourKeeper.userData.maxSpeed = (ourKeeper.userData.maxSpeed || 12) + 4;
+      defenders.forEach(d => {
+        d.userData.speedMult = (d.userData.speedMult || 1) * 1.2;
+      });
+    }
+    // Pitch dimensions
+    const pitchWidth = 100;
+    const pitchLength = 160;
+    const goalWidth = 20;
+    // Initialize everything
+    function init() {
+      scene = new THREE.Scene();
+      scene.fog = new THREE.Fog(0x0a3d24, 100, 350);
+      // Camera
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      document.body.appendChild(renderer.domElement);
+      window.addEventListener('resize', onResize);
+      // Lights
+      const ambient = new THREE.AmbientLight(0x404040);
+      scene.add(ambient);
+      const dir = new THREE.DirectionalLight(0xffffff, 1);
+      dir.position.set(50, 100, 50);
+      dir.castShadow = true;
+      dir.shadow.mapSize.set(1024, 1024);
+      dir.shadow.camera.left = -80;
+      dir.shadow.camera.right = 80;
+      dir.shadow.camera.top = 80;
+      dir.shadow.camera.bottom = -80;
+      scene.add(dir);
+      // Pitch (plane with simple grass color)
+      const planeGeom = new THREE.PlaneGeometry(pitchWidth, pitchLength);
+      const planeMat = new THREE.MeshStandardMaterial({ color: 0x006d34, roughness: 1.0, metalness: 0.0 });
+      const plane = new THREE.Mesh(planeGeom, planeMat);
+      plane.rotation.x = -Math.PI / 2;
+      plane.receiveShadow = true;
+      scene.add(plane);
+      // Lines
+      const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      function addLine(x1, z1, x2, z2) {
+        const dx = x2 - x1;
+        const dz = z2 - z1;
+        const len = Math.sqrt(dx * dx + dz * dz);
+        const lineGeom = new THREE.BoxGeometry(0.1, 0.1, len);
+        const line = new THREE.Mesh(lineGeom, lineMat);
+        line.position.set((x1 + x2) / 2, 0.05, (z1 + z2) / 2);
+        const angle = Math.atan2(dx, dz);
+        line.rotation.y = angle;
+        scene.add(line);
       }
-    });
-
-    // Create the goalkeeper using a capsule geometry for smoother shape
-    const keeperGeom = new THREE.CapsuleGeometry(0.8, 2.5, 8, 16);
-    const keeperMat = new THREE.MeshStandardMaterial({ color: 0xffff00, roughness: 0.3, metalness: 0.1 });
-    keeper = new THREE.Mesh(keeperGeom, keeperMat);
-    keeper.castShadow = true;
-    keeper.position.set(0, 2.5, -pitchLength / 2 + 1);
-    scene.add(keeper);
-
-    // Create simple defenders as capsules; they oscillate horizontally
-    const defenderCount = 6;
-    const defColor = new THREE.Color(0x0044ff);
-    for (let i = 0; i < defenderCount; i++) {
+      // Center and goal lines
+      addLine(-pitchWidth / 2, 0, pitchWidth / 2, 0);
+      addLine(-goalWidth / 2, -pitchLength / 2, goalWidth / 2, -pitchLength / 2);
+      addLine(-goalWidth / 2, pitchLength / 2, goalWidth / 2, pitchLength / 2);
+      // Ball
+      const ballGeom = new THREE.SphereGeometry(0.6, 32, 32);
+      const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.6 });
+      ball = new THREE.Mesh(ballGeom, ballMat);
+      ball.castShadow = true;
+      resetBall();
+      scene.add(ball);
+      // Opponent goalkeeper (far side)
+      const keeperGeom = new THREE.CapsuleGeometry(0.8, 2.5, 8, 16);
+      const keeperMat = new THREE.MeshStandardMaterial({ color: 0xffff00, roughness: 0.3, metalness: 0.1 });
+      keeper = new THREE.Mesh(keeperGeom, keeperMat);
+      keeper.castShadow = true;
+      keeper.position.set(0, 2.5, -pitchLength / 2 + 1);
+      // Store max speed on userData so it can scale with level
+      keeper.userData.maxSpeed = 12;
+      scene.add(keeper);
+      // Our goalkeeper (near side)
+      const ourKeeperMat = new THREE.MeshStandardMaterial({ color: 0xff4444, roughness: 0.3, metalness: 0.1 });
+      ourKeeper = new THREE.Mesh(keeperGeom.clone(), ourKeeperMat);
+      ourKeeper.castShadow = true;
+      ourKeeper.position.set(0, 2.5, pitchLength / 2 - 1);
+      ourKeeper.userData.maxSpeed = 12;
+      scene.add(ourKeeper);
+      // Defenders (opponents) - capsules
+      defenders = [];
+      const defCount = 6;
       const defGeom = new THREE.CapsuleGeometry(0.6, 2.0, 8, 16);
-      const defMat = new THREE.MeshStandardMaterial({ color: defColor });
-      const defender = new THREE.Mesh(defGeom, defMat);
-      defender.castShadow = true;
-      const x = (i - defenderCount / 2 + 0.5) * 8;
-      const z = -40 - i * 5;
-      defender.position.set(x, 2.0, z);
-      defenders.push(defender);
-      scene.add(defender);
+      const defMat = new THREE.MeshStandardMaterial({ color: 0x0044ff, roughness: 0.4, metalness: 0.1 });
+      for (let i = 0; i < defCount; i++) {
+       const d = new THREE.Mesh(defGeom, defMat);
+        d.castShadow = true;
+        const x = (i - defCount / 2 + 0.5) * 10;
+        const z = -30 - i * 6;
+        d.position.set(x, 2.0, z);
+        d.userData = { dir: 1, phase: Math.random() * Math.PI * 2 };
+        defenders.push(d);
+        scene.add(d);
+      }
+      // Crowd (simple boxes) along sidelines
+      const crowdMat1 = new THREE.MeshStandardMaterial({ color: 0xff5555 });
+      const crowdMat2 = new THREE.MeshStandardMaterial({ color: 0x55ff55 });
+      const fanGeom = new THREE.BoxGeometry(1.0, 4.0, 1.0);
+      const crowdCount = 40;
+      for (let i = 0; i < crowdCount; i++) {
+        const fan1 = new THREE.Mesh(fanGeom, crowdMat1);
+        fan1.position.set(-pitchWidth / 2 - 2, 2.0, -pitchLength / 2 + i * (pitchLength / crowdCount));
+        scene.add(fan1);
+        const fan2 = new THREE.Mesh(fanGeom, crowdMat2);
+        fan2.position.set(pitchWidth / 2 + 2, 2.0, -pitchLength / 2 + i * (pitchLength / crowdCount));
+        scene.add(fan2);
+      }
+      // Camera initial position behind ball
+      camera.position.set(0, 2.5, 10);
+      camera.lookAt(ball.position.x, 1.5, ball.position.z);
+      // Pointer lock
+      document.body.addEventListener('click', () => {
+        if (!pointerLocked) {
+          document.body.requestPointerLock();
+        }
+      });
+      document.addEventListener('pointerlockchange', () => {
+        pointerLocked = document.pointerLockElement === document.body;
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (pointerLocked) {
+          const sensitivity = 0.002;
+          yaw -= e.movementX * sensitivity;
+          pitch -= e.movementY * sensitivity;
+          const maxPitch = Math.PI / 2 - 0.1;
+          pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
+        }
+      });
+      // Keyboard controls
+      document.addEventListener('keydown', (e) => {
+        state.keys[e.code] = true;
+        if (e.code === 'KeyQ') state.spin.set(0, 1, 0);
+        if (e.code === 'KeyE') state.spin.set(0, -1, 0);
+      });
+      document.addEventListener('keyup', (e) => {
+        state.keys[e.code] = false;
+        if (e.code === 'KeyQ' || e.code === 'KeyE') state.spin.set(0, 0, 0);
+      });
+      // Mouse for charging
+      document.addEventListener('mousedown', (e) => {
+        state.charging = true;
+        state.chargeStart = performance.now();
+      });
+      document.addEventListener('mouseup', (e) => {
+        if (state.charging) {
+          const now = performance.now();
+          const chargeDur = now - state.chargeStart;
+          const power = Math.min(chargeDur / 1000, 1.0);
+          // Shoot in the direction the camera is facing
+          const dir = new THREE.Vector3();
+          camera.getWorldDirection(dir);
+          dir.y = 0;
+          dir.normalize();
+          state.ballVel.copy(dir).multiplyScalar(25 * power);
+          state.charging = false;
+        }
+      });
+      // Start animation loop
+      animate();
     }
-
-    // Create crowd as small boxes along both sidelines
-    const crowdCount = 50;
-    for (let i = 0; i < crowdCount; i++) {
-      const crowdGeom = new THREE.BoxGeometry(1.0, 4.0, 1.0);
-      const color = new THREE.Color().setHSL(Math.random(), 0.6, 0.5);
-      const crowdMat = new THREE.MeshBasicMaterial({ color: color });
-      const fan1 = new THREE.Mesh(crowdGeom, crowdMat);
-      fan1.position.set(-pitchWidth / 2 - 2, 2.0, -pitchLength / 2 + i * (pitchLength / crowdCount));
-      scene.add(fan1);
-      const fan2 = fan1.clone();
-      fan2.position.set(pitchWidth / 2 + 2, 2.0, -pitchLength / 2 + i * (pitchLength / crowdCount));
-      scene.add(fan2);
-    }
-
-    // Position the camera initially behind the ball
-    camera.position.set(0, 2.5, 10);
-    camera.lookAt(player.ball.position.x, 1.5, player.ball.position.z);
-
-    // Start the game loop
-    animate();
-  }
-
-  // Adjust camera and renderer size on window resize
-  function onResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  // Update AI for goalkeeper and defenders
-  function updateAI(dt) {
-    // Goalkeeper tries to align with predicted ball x-position at the goal plane
-    const targetZ = -80; // approximate goal plane Z
-    const timeToGoal = (targetZ - player.ball.position.z) / (player.vel.z || 1e-6);
-    let predictedX = player.ball.position.x + player.vel.x * Math.max(timeToGoal, 0);
-    predictedX = THREE.MathUtils.clamp(predictedX, -10, 10);
-    const speed = 12;
-    const dx = predictedX - keeper.position.x;
-    keeper.position.x += Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
-    // Rotate keeper slightly as if diving
-    const rotationTarget = -dx / 10;
-    keeper.rotation.z = THREE.MathUtils.lerp(keeper.rotation.z, rotationTarget, dt * 5);
-    // Defenders move side-to-side to block
-    defenders.forEach((d, idx) => {
-      const oscillation = Math.sin((performance.now() * 0.001) + idx) * 4;
-      d.position.x = (idx - defenders.length / 2 + 0.5) * 8 + oscillation;
-    });
-  }
-
-  // Main animation loop
-  let lastTime = performance.now();
-  function animate() {
-    requestAnimationFrame(animate);
-    const now = performance.now();
-    const dt = (now - lastTime) / 1000;
-    lastTime = now;
-    // Handle player movement using WASD
-    const moveDir = new THREE.Vector3();
-    if (player.keyState['KeyW']) moveDir.z -= 1;
-    if (player.keyState['KeyS']) moveDir.z += 1;
-    if (player.keyState['KeyA']) moveDir.x -= 1;
-    if (player.keyState['KeyD']) moveDir.x += 1;
-    moveDir.normalize();
-    if (moveDir.length() > 0) {
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir);
-      dir.y = 0;
-      dir.normalize();
-      const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0));
-      const worldMove = new THREE.Vector3();
-      worldMove.addScaledVector(dir, moveDir.z);
-      worldMove.addScaledVector(right, moveDir.x);
-      worldMove.normalize().multiplyScalar(10 * dt);
-      player.ball.position.add(worldMove);
-      camera.position.add(worldMove);
-    }
-    // Update ball with velocity and spin
-    if (player.vel.lengthSq() > 0.0001) {
-      player.ball.position.addScaledVector(player.vel, dt);
-      player.vel.multiplyScalar(0.98);
-      if (player.spin.lengthSq() > 0.0001) {
-        const lift = new THREE.Vector3().crossVectors(player.spin, player.vel).multiplyScalar(0.1);
-        player.vel.add(lift);
-        player.spin.multiplyScalar(0.98);
+    function resetBall() {
+      if (!ball) return;
+      ball.position.set(0, 0.6, 0);
+      state.ballVel.set(0, 0, 0);
+      state.spin.set(0, 0, 0);
+      state.aiCarrier = null;
+      // Reset defenders to starting formation
+      defenders.forEach((d, idx) => {
+        const x = (idx - defenders.length / 2 + 0.5) * 10;
+        const z = -30 - idx * 6;
+        d.position.set(x, 2.0, z);
+        d.userData.phase = Math.random() * Math.PI * 2;
+      });
+      // Reset keepers positions and rotations
+      if (keeper) {
+        keeper.position.set(0, 2.5, -pitchLength / 2 + 1);
+        keeper.rotation.set(0, 0, 0);
+      }
+      if (ourKeeper) {
+        ourKeeper.position.set(0, 2.5, pitchLength / 2 - 1);
+        ourKeeper.rotation.set(0, 0, 0);
       }
     }
-    // Confine ball within pitch
-    const maxX = 45, maxZ = 75;
-    if (player.ball.position.x < -maxX) {
-      player.ball.position.x = -maxX; player.vel.x *= -0.5;
+    // Resize handler
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
     }
-    if (player.ball.position.x > maxX) {
-      player.ball.position.x = maxX; player.vel.x *= -0.5;
+    // AI update for goalkeeper and defenders
+    function updateAI(dt) {
+      // Opponent goalkeeper tracks predicted x when ball moving toward their goal
+      const zGoalFar = -pitchLength / 2 + 1;
+      let predictedXFar = ball.position.x;
+      if (state.ballVel.z < -0.01) {
+        const timeToGoal = (zGoalFar - ball.position.z) / state.ballVel.z;
+        predictedXFar = ball.position.x + state.ballVel.x * timeToGoal;
+      }
+      predictedXFar = THREE.MathUtils.clamp(predictedXFar, -goalWidth / 2 + 1, goalWidth / 2 - 1);
+      const dxFar = predictedXFar - keeper.position.x;
+      const maxSpeedFar = keeper.userData.maxSpeed;
+      keeper.position.x += Math.sign(dxFar) * Math.min(Math.abs(dxFar), maxSpeedFar * dt);
+      keeper.rotation.z = THREE.MathUtils.lerp(keeper.rotation.z, -dxFar * 0.05, dt * 5);
+      // Our goalkeeper tracks predicted x when ball moving toward our goal
+      const zGoalNear = pitchLength / 2 - 1;
+      let predictedXNear = ball.position.x;
+      if (state.ballVel.z > 0.01) {
+        const timeToGoalNear = (zGoalNear - ball.position.z) / state.ballVel.z;
+        predictedXNear = ball.position.x + state.ballVel.x * timeToGoalNear;
+      }
+      predictedXNear = THREE.MathUtils.clamp(predictedXNear, -goalWidth / 2 + 1, goalWidth / 2 - 1);
+      const dxNear = predictedXNear - ourKeeper.position.x;
+      const maxSpeedNear = ourKeeper.userData.maxSpeed;
+      ourKeeper.position.x += Math.sign(dxNear) * Math.min(Math.abs(dxNear), maxSpeedNear * dt);
+      ourKeeper.rotation.z = THREE.MathUtils.lerp(ourKeeper.rotation.z, -dxNear * 0.05, dt * 5);
+      // Defenders oscillate in x direction and move slightly forward/backward
+      defenders.forEach((d, i) => {
+        const baseSpeed = d.userData.speedMult || 1;
+        const freq = (0.5 + i * 0.1) * baseSpeed;
+        const amp = (5 + i * 0.5) * baseSpeed;
+        d.position.x = Math.sin((performance.now() * 0.001) * freq + d.userData.phase) * amp + (i - defenders.length / 2 + 0.5) * 10;
+        // Move slightly toward our goal when near ball
+        const distToBall = d.position.distanceTo(ball.position);
+        if (distToBall < 6 && !state.aiCarrier) {
+          // steal the ball
+          state.aiCarrier = d;
+        }
+      });
+      // If defender has ball, move toward our goal (positive z)
+      if (state.aiCarrier) {
+        const carrier = state.aiCarrier;
+        // Move forward
+        const speed = 10;
+        carrier.position.z += speed * dt;
+        // attach ball to front of carrier
+        ball.position.x = carrier.position.x;
+        ball.position.z = carrier.position.z + 1.5;
+        ball.position.y = 0.6;
+        // When reaches near goal, score for them
+        if (carrier.position.z > pitchLength / 2 - 1) {
+          // They scored
+          state.score.them += 1;
+          updateScore();
+          // reset positions
+          resetBall();
+          // reposition defenders back to starting positions
+          defenders.forEach((d, idx) => {
+            const x = (idx - defenders.length / 2 + 0.5) * 10;
+            const z = -30 - idx * 6;
+            d.position.set(x, 2.0, z);
+          });
+        }
+      }
     }
-    if (player.ball.position.z < -maxZ) {
-      player.ball.position.z = -maxZ; player.vel.z *= -0.5;
+    // Update scoreboard UI
+    function updateScore() {
+      document.getElementById('score').textContent = 'Level ' + level + ' | ' + state.score.us + ' - ' + state.score.them;
     }
-    if (player.ball.position.z > maxZ) {
-      player.ball.position.z = maxZ; player.vel.z *= -0.5;
+    // Collision detection between ball and keeper
+    function handleCollisions() {
+      // Ball with keeper: treat as cylinder of radius 1.5 and height ~3
+      const dx = ball.position.x - keeper.position.x;
+      const dz = ball.position.z - keeper.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      const collisionDist = 1.0 + 1.5;
+      if (dist < collisionDist && state.aiCarrier === null) {
+        // reflect ball velocity
+        const normal = new THREE.Vector3(dx, 0, dz).normalize();
+        const velDot = state.ballVel.dot(normal);
+        if (velDot < 0) {
+          const reflect = normal.multiplyScalar(-2 * velDot);
+          state.ballVel.add(reflect);
+          state.ballVel.multiplyScalar(0.5);
+        }
+      }
+      // Ball with our keeper: bounce back when moving toward our goal
+      {
+        const dxk = ball.position.x - ourKeeper.position.x;
+        const dzk = ball.position.z - ourKeeper.position.z;
+        const distk = Math.sqrt(dxk * dxk + dzk * dzk);
+        const collDistK = 1.0 + 1.5;
+        if (distk < collDistK && state.aiCarrier === null) {
+          const normal = new THREE.Vector3(dxk, 0, dzk).normalize();
+          const velDot = state.ballVel.dot(normal);
+          if (velDot > 0) {
+            const reflect = normal.multiplyScalar(-2 * velDot);
+            state.ballVel.add(reflect);
+            state.ballVel.multiplyScalar(0.5);
+          }
+        }
+      }
+      // Ball with defenders
+      defenders.forEach((d) => {
+        const dx2 = ball.position.x - d.position.x;
+        const dz2 = ball.position.z - d.position.z;
+        const dist2 = Math.sqrt(dx2 * dx2 + dz2 * dz2);
+        const collDist = 1.0 + 0.8;
+        if (dist2 < collDist && state.aiCarrier === null) {
+          // steal ball
+          state.aiCarrier = d;
+        }
+      });
     }
-    // Keep the camera at a constant height and looking at the ball
-    camera.position.y = 2.5;
-    camera.lookAt(player.ball.position.x, 1.5, player.ball.position.z);
-    // Update AI elements
-    updateAI(dt);
-    renderer.render(scene, camera);
-  }
-
-  // Initialize after page load
-  init();
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      // Update player movement (W/A/S/D)
+      const move = new THREE.Vector3();
+      if (state.keys['KeyW']) move.z -= 1;
+      if (state.keys['KeyS']) move.z += 1;
+      if (state.keys['KeyA']) move.x -= 1;
+      if (state.keys['KeyD']) move.x += 1;
+      move.normalize();
+      if (move.lengthSq() > 0 && !state.aiCarrier) {
+        // Transform move relative to camera yaw (we ignore pitch for movement)
+        const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+        const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+        const worldMove = new THREE.Vector3();
+        worldMove.addScaledVector(forward, move.z);
+        worldMove.addScaledVector(right, move.x);
+        worldMove.normalize().multiplyScalar(12 * dt);
+        ball.position.add(worldMove);
+        camera.position.add(worldMove);
+      }
+      // Update ball physics when not stolen
+      if (!state.aiCarrier) {
+        // Apply velocity
+        ball.position.addScaledVector(state.ballVel, dt);
+        // Friction
+        state.ballVel.multiplyScalar(0.98);
+        // Magnus effect (spin)
+        if (state.spin.lengthSq() > 0.001) {
+          const lift = new THREE.Vector3().crossVectors(state.spin, state.ballVel).multiplyScalar(0.05);
+          state.ballVel.add(lift);
+          state.spin.multiplyScalar(0.98);
+        }
+      }
+      // Boundaries and scoring for us
+      const maxX = pitchWidth / 2 - 1;
+      const maxZ = pitchLength / 2 - 1;
+      if (ball.position.x < -maxX) { ball.position.x = -maxX; state.ballVel.x *= -0.5; }
+      if (ball.position.x > maxX) { ball.position.x = maxX; state.ballVel.x *= -0.5; }
+      if (ball.position.z < -maxZ) {
+        // At far goal (opponent's goal): check if between posts
+        if (Math.abs(ball.position.x) < goalWidth / 2) {
+          state.score.us += 1;
+          updateScore();
+          // Level up when reaching threshold
+          if (state.score.us >= goalsForNext) {
+            advanceLevel();
+          }
+        }
+        resetBall();
+      }
+      if (ball.position.z > maxZ) {
+        // At our goal: if ball passes within posts, they score
+        if (Math.abs(ball.position.x) < goalWidth / 2) {
+          state.score.them += 1;
+          updateScore();
+        }
+        resetBall();
+      }
+      // Keep camera at constant height and looking slightly ahead
+      camera.position.y = 2.5;
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+      // Keep camera looking ahead of ball (makes easier to see)
+      const lookTarget = new THREE.Vector3(ball.position.x, 1.5, ball.position.z);
+      camera.lookAt(lookTarget);
+      // Update AI and collisions
+      updateAI(dt);
+      handleCollisions();
+      renderer.render(scene, camera);
+    }
+    // Start the game once DOM ready
+    document.addEventListener('DOMContentLoaded', init);
+  })();
   </script>
 </body>
 </html>
