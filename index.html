@@ -1,114 +1,170 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>KickCraft 3D Soccer Demo</title>
-<style>
-  body { margin:0; overflow:hidden; }
-  canvas { display:block; }
-  #info { position: absolute; top: 10px; left: 10px; color: white; font-family: sans-serif; background: rgba(0,0,0,0.4); padding: 6px 10px; border-radius: 4px; }
-</style>
+  <meta charset="UTF-8">
+  <title>KickCraft 3D</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-family: sans-serif;
+      font-size: 14px;
+    }
+  </style>
 </head>
 <body>
-<div id="info">Use the arrow keys to dribble the ball around the 3D pitch. This is a minimal 3D demo of KickCraft.</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-<script>
-(() => {
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a3d24);
-
-  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  // Resize handling
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-
-  // Lighting
-  const ambient = new THREE.AmbientLight(0x888888);
-  scene.add(ambient);
-  const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-  directional.position.set(50, 100, 50);
-  scene.add(directional);
-
-  // Pitch
-  const pitchWidth = 60;
-  const pitchHeight = 40;
-  const pitchGeom = new THREE.PlaneGeometry(pitchWidth, pitchHeight);
-  const pitchMat = new THREE.MeshLambertMaterial({ color: 0x006d34 });
-  const pitch = new THREE.Mesh(pitchGeom, pitchMat);
-  pitch.rotation.x = -Math.PI / 2;
-  scene.add(pitch);
-
-  // Center line and box markings (simple lines)
-  const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
-  function addLine(x1, y1, x2, y2) {
-    const pts = [];
-    pts.push(new THREE.Vector3(x1, 0.01, y1));
-    pts.push(new THREE.Vector3(x2, 0.01, y2));
-    const geom = new THREE.BufferGeometry().setFromPoints(pts);
-    const line = new THREE.Line(geom, lineMaterial);
-    scene.add(line);
-  }
-  // center line
-  addLine(-pitchWidth/2, 0, pitchWidth/2, 0);
-  // goal lines
-  addLine(-GOAL_WIDTH()/2, -pitchHeight/2, GOAL_WIDTH()/2, -pitchHeight/2);
-  addLine(-GOAL_WIDTH()/2, pitchHeight/2, GOAL_WIDTH()/2, pitchHeight/2);
-  function GOAL_WIDTH() { return 20; }
-
-  // Ball
-  const ballGeom = new THREE.SphereGeometry(0.5, 32, 32);
-  const ballMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-  const ball = new THREE.Mesh(ballGeom, ballMat);
-  ball.position.set(0, 0.5, 0);
-  scene.add(ball);
-
-  // Players - simple boxes for both teams
-  const playerGeom = new THREE.BoxGeometry(0.5, 1, 0.5);
-  const players = [];
-  function createTeam(color, zPos) {
-    for (let i = 0; i < 11; i++) {
-      const mat = new THREE.MeshLambertMaterial({ color });
-      const p = new THREE.Mesh(playerGeom, mat);
-      p.position.set(-25 + i * 5, 0.5, zPos);
-      scene.add(p);
-      players.push(p);
-    }
-  }
-  createTeam(0xff0000, -15); // our team (red) near bottom
-  createTeam(0x0000ff, 15);  // opponent team (blue) near top
-
-  // Camera placement
-  camera.position.set(0, 40, 60);
-  camera.lookAt(0, 0, 0);
-
-  // Controls: move ball with arrow keys
-  const keys = {};
-  window.addEventListener('keydown', (e) => { keys[e.code] = true; });
-  window.addEventListener('keyup', (e) => { keys[e.code] = false; });
-
-  function animate() {
-    requestAnimationFrame(animate);
-    const speed = 0.3;
-    if (keys['ArrowLeft']) ball.position.x -= speed;
-    if (keys['ArrowRight']) ball.position.x += speed;
-    if (keys['ArrowUp']) ball.position.z -= speed;
-    if (keys['ArrowDown']) ball.position.z += speed;
-    // constrain ball to pitch
-    const maxX = pitchWidth/2 - 1;
-    const maxZ = pitchHeight/2 - 1;
-    ball.position.x = Math.max(-maxX, Math.min(maxX, ball.position.x));
-    ball.position.z = Math.max(-maxZ, Math.min(maxZ, ball.position.z));
-    renderer.render(scene, camera);
-  }
-  animate();
-})();
-</script>
+  <div id="info">Drag on the field to move the ball. Play with France (blue) vs Portugal (green).</div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <script>
+    // KickCraft 3D interactive top-down soccer
+    (() => {
+      // scene and camera setup
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a3d24);
+      const camera = new THREE.PerspectiveCamera(
+        60,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      // position camera above the pitch looking down
+      camera.position.set(0, 60, 60);
+      camera.lookAt(0, 0, 0);
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+      // handle resize events
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+      // add basic lighting
+      const ambient = new THREE.AmbientLight(0x888888);
+      scene.add(ambient);
+      const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+      directional.position.set(50, 100, 50);
+      scene.add(directional);
+      // create the pitch as a plane
+      const pitchWidth = 70;
+      const pitchHeight = 100;
+      const pitchGeom = new THREE.PlaneGeometry(pitchWidth, pitchHeight);
+      const pitchMat = new THREE.MeshLambertMaterial({ color: 0x006d34 });
+      const pitch = new THREE.Mesh(pitchGeom, pitchMat);
+      // rotate plane to lie on the XZ plane
+      pitch.rotation.x = -Math.PI / 2;
+      scene.add(pitch);
+      // draw center and goal lines
+      const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+      function addLine(x1, z1, x2, z2) {
+        const pts = [new THREE.Vector3(x1, 0.01, z1), new THREE.Vector3(x2, 0.01, z2)];
+        const geom = new THREE.BufferGeometry().setFromPoints(pts);
+        const line = new THREE.Line(geom, lineMat);
+        scene.add(line);
+      }
+      // center line
+      addLine(-pitchWidth / 2, 0, pitchWidth / 2, 0);
+      // goal lines
+      const goalW = 24;
+      addLine(-goalW / 2, -pitchHeight / 2, goalW / 2, -pitchHeight / 2);
+      addLine(-goalW / 2, pitchHeight / 2, goalW / 2, pitchHeight / 2);
+      // create the ball
+      const ballGeom = new THREE.SphereGeometry(1, 32, 32);
+      const ballMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+      const ball = new THREE.Mesh(ballGeom, ballMat);
+      ball.position.set(0, 1, 0);
+      scene.add(ball);
+      let ballVel = new THREE.Vector3();
+      // helper to create players as cylinders
+      function createPlayer(color, x, z) {
+        const geom = new THREE.CylinderGeometry(0.8, 0.8, 3, 16);
+        const mat = new THREE.MeshLambertMaterial({ color });
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.position.set(x, 1.5, z);
+        scene.add(mesh);
+        return mesh;
+      }
+      // define team colors and positions
+      const frColor = 0x0044ff; // France: blue
+      const frPositions = [
+        [-20, -35], [-10, -35], [0, -35], [10, -35], [20, -35],
+        [-15, -20], [0, -20], [15, -20],
+        [-10, -5], [0, -5], [10, -5]
+      ];
+      frPositions.forEach(([x, z]) => createPlayer(frColor, x, z));
+      const ptColor = 0x009933; // Portugal: green
+      const ptPositions = [
+        [-20, 35], [-10, 35], [0, 35], [10, 35], [20, 35],
+        [-15, 20], [0, 20], [15, 20],
+        [-10, 5], [0, 5], [10, 5]
+      ];
+      ptPositions.forEach(([x, z]) => createPlayer(ptColor, x, z));
+      // set up raycaster for converting screen positions to world coordinates
+      const raycaster = new THREE.Raycaster();
+      let pointerDown = false;
+      function getPointerWorld(evt) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera({ x, y }, camera);
+        // plane at y=0
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const point = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, point);
+        return point;
+      }
+      // handle pointer (touch/mouse) events
+      renderer.domElement.addEventListener('pointerdown', (e) => {
+        pointerDown = true;
+        const p = getPointerWorld(e);
+        const dir = new THREE.Vector3().subVectors(p, ball.position);
+        dir.y = 0;
+        if (dir.length() > 0) {
+          dir.normalize().multiplyScalar(0.8);
+          ballVel.copy(dir);
+        }
+      });
+      renderer.domElement.addEventListener('pointermove', (e) => {
+        if (pointerDown) {
+          const p = getPointerWorld(e);
+          const dir = new THREE.Vector3().subVectors(p, ball.position);
+          dir.y = 0;
+          if (dir.length() > 0) {
+            dir.normalize().multiplyScalar(0.8);
+            ballVel.copy(dir);
+          }
+        }
+      });
+      window.addEventListener('pointerup', () => {
+        pointerDown = false;
+      });
+      // animation loop updates ball movement and handles boundaries
+      function animate() {
+        requestAnimationFrame(animate);
+        // update ball position
+        ball.position.add(ballVel);
+        // apply friction
+        ballVel.multiplyScalar(0.95);
+        // simple boundary checking with bounce
+        if (ball.position.x < -pitchWidth / 2 + 1 || ball.position.x > pitchWidth / 2 - 1) {
+          ball.position.x = Math.max(-pitchWidth / 2 + 1, Math.min(pitchWidth / 2 - 1, ball.position.x));
+          ballVel.x *= -0.4;
+        }
+        if (ball.position.z < -pitchHeight / 2 + 1 || ball.position.z > pitchHeight / 2 - 1) {
+          ball.position.z = Math.max(-pitchHeight / 2 + 1, Math.min(pitchHeight / 2 - 1, ball.position.z));
+          ballVel.z *= -0.4;
+        }
+        renderer.render(scene, camera);
+      }
+      animate();
+    })();
+  </script>
 </body>
 </html>
