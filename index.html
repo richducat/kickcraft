@@ -1,441 +1,519 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>KickCraft 3D First Person (No modules)</title>
+  <title>KickCraft Soccer – Pseudo‑3D 11v11</title>
   <style>
+    /* Full page canvas and UI styling */
     html, body {
       margin: 0;
       padding: 0;
-      overflow: hidden;
-      background: #000;
+      height: 100%;
+      background: #003300;
       font-family: sans-serif;
+      overflow: hidden;
     }
     #ui {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.6);
+      top: 8px;
+      left: 8px;
+      background: rgba(0,0,0,0.6);
       color: #fff;
-      padding: 8px 12px;
+      padding: 6px 10px;
       border-radius: 4px;
       font-size: 14px;
+      z-index: 5;
       pointer-events: none;
-      z-index: 10;
+    }
+    #score {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 5;
+      pointer-events: none;
+    }
+    #canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none; /* allow pointer events */
     }
   </style>
 </head>
 <body>
-  <div id="ui">Click to lock pointer. Use W/A/S/D to move. Hold mouse to charge and release to shoot. Press Q/E to spin.</div>
-  <div id="score" style="position:absolute;top:10px;right:10px;color:#fff;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:4px;font-size:14px;pointer-events:none;z-index:10;">0 - 0</div>
-  <!-- Load Three.js from CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+  <div id="ui">W/A/S/D: Move · Q/E: Spin · Shift: Sprint · Tab: Switch Player · Left Click: Shoot (hold for power) · Right Click: Pass</div>
+  <div id="score">Level 1 | 0 – 0</div>
+  <canvas id="canvas"></canvas>
   <script>
   (function() {
-    // Scene setup
-    let scene, camera, renderer;
-    let ball, keeper, ourKeeper, defenders = [];
-    let clock = new THREE.Clock();
-    let pointerLocked = false;
-    let yaw = 0, pitch = 0;
-    // Game state
-    const state = {
-      ballVel: new THREE.Vector3(),
-      spin: new THREE.Vector3(),
-      charging: false,
-      chargeStart: 0,
-      keys: {},
-      score: { us: 0, them: 0 },
-      aiCarrier: null
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+    /*
+      Game settings and constants
+    */
+    const PITCH_W = 90;   // world units width
+    const PITCH_L = 130;  // world units length
+    const GOAL_W = 24;
+    const STRIPE_COUNT = 10;
+    // Convert world x,z to screen coordinates with simple perspective scaling
+    function worldToScreen(x, z) {
+      // scale based on z: far (negative z) appears smaller, near (positive z) appears larger
+      const perspective = 0.6 + (z + PITCH_L/2) / PITCH_L; // from 0.1 to 1.1 roughly
+      const screenX = width / 2 + x * perspective * (width / PITCH_W) * 0.45;
+      const screenY = height / 2 - (z + PITCH_L/4) * (height / PITCH_L) * 0.7;
+      return { x: screenX, y: screenY, scale: perspective };
+    }
+    // Player prototype
+    class Player {
+      constructor(team, role, x, z) {
+        this.team = team; // 'pt' or 'fr'
+        this.role = role;
+        this.x = x;
+        this.z = z;
+        this.vx = 0;
+        this.vz = 0;
+        this.speed = 8; // base speed
+        this.selected = false;
+        this.hasBall = false;
+      }
+    }
+    // Initialise teams with positions (11 per side)
+    function initTeams() {
+      const pt = [];
+      const fr = [];
+      // Portugal formation 4-3-3
+      pt.push(new Player('pt','GK', 0, PITCH_L/2 - 5));
+      pt.push(new Player('pt','RB', PITCH_W/4, PITCH_L/2 - 20));
+      pt.push(new Player('pt','RCB', PITCH_W/8, PITCH_L/2 - 25));
+      pt.push(new Player('pt','LCB', -PITCH_W/8, PITCH_L/2 - 25));
+      pt.push(new Player('pt','LB', -PITCH_W/4, PITCH_L/2 - 20));
+      pt.push(new Player('pt','CDM', 0, PITCH_L/2 - 40));
+      pt.push(new Player('pt','RCM', PITCH_W/5, PITCH_L/2 - 50));
+      pt.push(new Player('pt','LCM', -PITCH_W/5, PITCH_L/2 - 50));
+      pt.push(new Player('pt','RW', PITCH_W/3, PITCH_L/2 - 60));
+      pt.push(new Player('pt','ST', 0, PITCH_L/2 - 65));
+      pt.push(new Player('pt','LW', -PITCH_W/3, PITCH_L/2 - 60));
+      // France formation 4-3-3 mirrored
+      fr.push(new Player('fr','GK', 0, -PITCH_L/2 + 5));
+      fr.push(new Player('fr','RB', -PITCH_W/4, -PITCH_L/2 + 20));
+      fr.push(new Player('fr','RCB', -PITCH_W/8, -PITCH_L/2 + 25));
+      fr.push(new Player('fr','LCB', PITCH_W/8, -PITCH_L/2 + 25));
+      fr.push(new Player('fr','LB', PITCH_W/4, -PITCH_L/2 + 20));
+      fr.push(new Player('fr','CDM', 0, -PITCH_L/2 + 40));
+      fr.push(new Player('fr','RCM', -PITCH_W/5, -PITCH_L/2 + 50));
+      fr.push(new Player('fr','LCM', PITCH_W/5, -PITCH_L/2 + 50));
+      fr.push(new Player('fr','RW', -PITCH_W/3, -PITCH_L/2 + 60));
+      fr.push(new Player('fr','ST', 0, -PITCH_L/2 + 65));
+      fr.push(new Player('fr','LW', PITCH_W/3, -PITCH_L/2 + 60));
+      return { pt, fr };
+    }
+    let { pt: ptPlayers, fr: frPlayers } = initTeams();
+    let selectedIndex = 0;
+    ptPlayers[selectedIndex].selected = true;
+    // Ball state
+    const ball = {
+      x: 0,
+      z: 0,
+      vx: 0,
+      vz: 0,
+      spinZ: 0,
+      radius: 1.0,
     };
-    // Levels: increase difficulty every time we reach a threshold
+    // Score and level
+    let scoreUs = 0;
+    let scoreThem = 0;
     let level = 1;
     let goalsForNext = 2;
-    function advanceLevel() {
-      level++;
-      // Increase difficulty gradually
-      goalsForNext += 1;
-      keeper.userData.maxSpeed = (keeper.userData.maxSpeed || 12) + 4;
-      ourKeeper.userData.maxSpeed = (ourKeeper.userData.maxSpeed || 12) + 4;
-      defenders.forEach(d => {
-        d.userData.speedMult = (d.userData.speedMult || 1) * 1.2;
-      });
-    }
-    // Pitch dimensions
-    const pitchWidth = 100;
-    const pitchLength = 160;
-    const goalWidth = 20;
-    // Initialize everything
-    function init() {
-      scene = new THREE.Scene();
-      scene.fog = new THREE.Fog(0x0a3d24, 100, 350);
-      // Camera
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-      // Renderer
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.shadowMap.enabled = true;
-      renderer.outputEncoding = THREE.sRGBEncoding;
-      document.body.appendChild(renderer.domElement);
-      window.addEventListener('resize', onResize);
-      // Lights
-      const ambient = new THREE.AmbientLight(0x404040);
-      scene.add(ambient);
-      const dir = new THREE.DirectionalLight(0xffffff, 1);
-      dir.position.set(50, 100, 50);
-      dir.castShadow = true;
-      dir.shadow.mapSize.set(1024, 1024);
-      dir.shadow.camera.left = -80;
-      dir.shadow.camera.right = 80;
-      dir.shadow.camera.top = 80;
-      dir.shadow.camera.bottom = -80;
-      scene.add(dir);
-      // Pitch (plane with simple grass color)
-      const planeGeom = new THREE.PlaneGeometry(pitchWidth, pitchLength);
-      const planeMat = new THREE.MeshStandardMaterial({ color: 0x006d34, roughness: 1.0, metalness: 0.0 });
-      const plane = new THREE.Mesh(planeGeom, planeMat);
-      plane.rotation.x = -Math.PI / 2;
-      plane.receiveShadow = true;
-      scene.add(plane);
-      // Lines
-      const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-      function addLine(x1, z1, x2, z2) {
-        const dx = x2 - x1;
-        const dz = z2 - z1;
-        const len = Math.sqrt(dx * dx + dz * dz);
-        const lineGeom = new THREE.BoxGeometry(0.1, 0.1, len);
-        const line = new THREE.Mesh(lineGeom, lineMat);
-        line.position.set((x1 + x2) / 2, 0.05, (z1 + z2) / 2);
-        const angle = Math.atan2(dx, dz);
-        line.rotation.y = angle;
-        scene.add(line);
+    // Input state
+    const keys = {};
+    let charging = false;
+    let chargeStart = 0;
+    let spinDir = 0; // -1 for left, 1 for right, 0 none
+    // Trap-lock to prevent sticky ball
+    let trapLock = 0;
+    let trapOwner = null;
+    // Event listeners
+    window.addEventListener('keydown', e => {
+      keys[e.code] = true;
+      if (e.code === 'Tab') {
+        // switch selected player
+        ptPlayers[selectedIndex].selected = false;
+        selectedIndex = (selectedIndex + 1) % ptPlayers.length;
+        ptPlayers[selectedIndex].selected = true;
+        e.preventDefault();
       }
-      // Center and goal lines
-      addLine(-pitchWidth / 2, 0, pitchWidth / 2, 0);
-      addLine(-goalWidth / 2, -pitchLength / 2, goalWidth / 2, -pitchLength / 2);
-      addLine(-goalWidth / 2, pitchLength / 2, goalWidth / 2, pitchLength / 2);
-      // Ball
-      const ballGeom = new THREE.SphereGeometry(0.6, 32, 32);
-      const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.6 });
-      ball = new THREE.Mesh(ballGeom, ballMat);
-      ball.castShadow = true;
-      resetBall();
-      scene.add(ball);
-      // Opponent goalkeeper (far side)
-      const keeperGeom = new THREE.CapsuleGeometry(0.8, 2.5, 8, 16);
-      const keeperMat = new THREE.MeshStandardMaterial({ color: 0xffff00, roughness: 0.3, metalness: 0.1 });
-      keeper = new THREE.Mesh(keeperGeom, keeperMat);
-      keeper.castShadow = true;
-      keeper.position.set(0, 2.5, -pitchLength / 2 + 1);
-      // Store max speed on userData so it can scale with level
-      keeper.userData.maxSpeed = 12;
-      scene.add(keeper);
-      // Our goalkeeper (near side)
-      const ourKeeperMat = new THREE.MeshStandardMaterial({ color: 0xff4444, roughness: 0.3, metalness: 0.1 });
-      ourKeeper = new THREE.Mesh(keeperGeom.clone(), ourKeeperMat);
-      ourKeeper.castShadow = true;
-      ourKeeper.position.set(0, 2.5, pitchLength / 2 - 1);
-      ourKeeper.userData.maxSpeed = 12;
-      scene.add(ourKeeper);
-      // Defenders (opponents) - capsules
-      defenders = [];
-      const defCount = 6;
-      const defGeom = new THREE.CapsuleGeometry(0.6, 2.0, 8, 16);
-      const defMat = new THREE.MeshStandardMaterial({ color: 0x0044ff, roughness: 0.4, metalness: 0.1 });
-      for (let i = 0; i < defCount; i++) {
-       const d = new THREE.Mesh(defGeom, defMat);
-        d.castShadow = true;
-        const x = (i - defCount / 2 + 0.5) * 10;
-        const z = -30 - i * 6;
-        d.position.set(x, 2.0, z);
-        d.userData = { dir: 1, phase: Math.random() * Math.PI * 2 };
-        defenders.push(d);
-        scene.add(d);
+      if (e.code === 'KeyQ') spinDir = -1;
+      if (e.code === 'KeyE') spinDir = 1;
+    });
+    window.addEventListener('keyup', e => {
+      keys[e.code] = false;
+      if (e.code === 'KeyQ' || e.code === 'KeyE') spinDir = 0;
+    });
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('mousedown', e => {
+      if (e.button === 0) {
+        charging = true;
+        chargeStart = performance.now();
       }
-      // Crowd (simple boxes) along sidelines
-      const crowdMat1 = new THREE.MeshStandardMaterial({ color: 0xff5555 });
-      const crowdMat2 = new THREE.MeshStandardMaterial({ color: 0x55ff55 });
-      const fanGeom = new THREE.BoxGeometry(1.0, 4.0, 1.0);
-      const crowdCount = 40;
-      for (let i = 0; i < crowdCount; i++) {
-        const fan1 = new THREE.Mesh(fanGeom, crowdMat1);
-        fan1.position.set(-pitchWidth / 2 - 2, 2.0, -pitchLength / 2 + i * (pitchLength / crowdCount));
-        scene.add(fan1);
-        const fan2 = new THREE.Mesh(fanGeom, crowdMat2);
-        fan2.position.set(pitchWidth / 2 + 2, 2.0, -pitchLength / 2 + i * (pitchLength / crowdCount));
-        scene.add(fan2);
-      }
-      // Camera initial position behind ball
-      camera.position.set(0, 2.5, 10);
-      camera.lookAt(ball.position.x, 1.5, ball.position.z);
-      // Pointer lock
-      document.body.addEventListener('click', () => {
-        if (!pointerLocked) {
-          document.body.requestPointerLock();
+    });
+    canvas.addEventListener('mouseup', e => {
+      if (e.button === 0 && charging) {
+        // Shoot ball from selected player towards cursor
+        const now = performance.now();
+        const chargeDur = now - chargeStart;
+        const power = Math.min(chargeDur / 1000, 1.0);
+        const sel = ptPlayers[selectedIndex];
+        // Convert screen mouse to world direction (approximate inverse)
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        // approximate world target z via y mapping
+        const targetZ = ((height/2 - my) / (height / PITCH_L) * (PITCH_L / 0.7)) - PITCH_L/4;
+        const targetX = (mx - width/2) / ((width / PITCH_W) * 0.45 * (0.6 + (targetZ + PITCH_L/2) / PITCH_L));
+        const dx = targetX - sel.x;
+        const dz = targetZ - sel.z;
+        const len = Math.hypot(dx, dz) || 1;
+        const speed = 40 * power;
+        ball.vx = (dx/len) * speed;
+        ball.vz = (dz/len) * speed;
+        // apply spin
+        if (spinDir !== 0) {
+          ball.spinZ = spinDir * 0.1;
         }
-      });
-      document.addEventListener('pointerlockchange', () => {
-        pointerLocked = document.pointerLockElement === document.body;
-      });
-      document.addEventListener('mousemove', (e) => {
-        if (pointerLocked) {
-          const sensitivity = 0.002;
-          yaw -= e.movementX * sensitivity;
-          pitch -= e.movementY * sensitivity;
-          const maxPitch = Math.PI / 2 - 0.1;
-          pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
+        // detach from any carrier
+        trapOwner = null;
+        trapLock = 200;
+        charging = false;
+      }
+      if (e.button === 2) {
+        // Pass to selected player: choose nearest teammate ahead
+        const sel = ptPlayers[selectedIndex];
+        let best = null;
+        let bestDist = Infinity;
+        ptPlayers.forEach((p,i) => {
+          if (i !== selectedIndex) {
+            const dz = p.z - sel.z;
+            const dx = p.x - sel.x;
+            const dist = dx*dx + dz*dz;
+            if (dz < 0 && dist < bestDist) {
+              bestDist = dist;
+              best = p;
+            }
+          }
+        });
+        if (!best) {
+          // if none ahead, pick any except selected
+          best = ptPlayers[(selectedIndex+1)%ptPlayers.length];
         }
-      });
-      // Keyboard controls
-      document.addEventListener('keydown', (e) => {
-        state.keys[e.code] = true;
-        if (e.code === 'KeyQ') state.spin.set(0, 1, 0);
-        if (e.code === 'KeyE') state.spin.set(0, -1, 0);
-      });
-      document.addEventListener('keyup', (e) => {
-        state.keys[e.code] = false;
-        if (e.code === 'KeyQ' || e.code === 'KeyE') state.spin.set(0, 0, 0);
-      });
-      // Mouse for charging
-      document.addEventListener('mousedown', (e) => {
-        state.charging = true;
-        state.chargeStart = performance.now();
-      });
-      document.addEventListener('mouseup', (e) => {
-        if (state.charging) {
-          const now = performance.now();
-          const chargeDur = now - state.chargeStart;
-          const power = Math.min(chargeDur / 1000, 1.0);
-          // Shoot in the direction the camera is facing
-          const dir = new THREE.Vector3();
-          camera.getWorldDirection(dir);
-          dir.y = 0;
-          dir.normalize();
-          state.ballVel.copy(dir).multiplyScalar(25 * power);
-          state.charging = false;
-        }
-      });
-      // Start animation loop
-      animate();
-    }
-    function resetBall() {
-      if (!ball) return;
-      ball.position.set(0, 0.6, 0);
-      state.ballVel.set(0, 0, 0);
-      state.spin.set(0, 0, 0);
-      state.aiCarrier = null;
-      // Reset defenders to starting formation
-      defenders.forEach((d, idx) => {
-        const x = (idx - defenders.length / 2 + 0.5) * 10;
-        const z = -30 - idx * 6;
-        d.position.set(x, 2.0, z);
-        d.userData.phase = Math.random() * Math.PI * 2;
-      });
-      // Reset keepers positions and rotations
-      if (keeper) {
-        keeper.position.set(0, 2.5, -pitchLength / 2 + 1);
-        keeper.rotation.set(0, 0, 0);
+        const dx = best.x - sel.x;
+        const dz = best.z - sel.z;
+        const len = Math.hypot(dx, dz) || 1;
+        const speed = 25;
+        ball.vx = (dx/len) * speed;
+        ball.vz = (dz/len) * speed;
+        trapOwner = null;
+        trapLock = 150;
       }
-      if (ourKeeper) {
-        ourKeeper.position.set(0, 2.5, pitchLength / 2 - 1);
-        ourKeeper.rotation.set(0, 0, 0);
+    });
+    /*
+      Game loop
+    */
+    let lastTime = performance.now();
+    function update() {
+      const now = performance.now();
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      // Update trapLock timer
+      if (trapLock > 0) trapLock -= dt * 1000;
+      // Move selected player with keys
+      const sel = ptPlayers[selectedIndex];
+      let moveX = 0, moveZ = 0;
+      if (keys['KeyW'] || keys['ArrowUp']) moveZ -= 1;
+      if (keys['KeyS'] || keys['ArrowDown']) moveZ += 1;
+      if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 1;
+      if (keys['KeyD'] || keys['ArrowRight']) moveX += 1;
+      let speedMod = (keys['ShiftLeft'] || keys['ShiftRight']) ? 1.5 : 1.0;
+      const lenMv = Math.hypot(moveX, moveZ);
+      if (lenMv > 0) {
+        moveX /= lenMv;
+        moveZ /= lenMv;
+        sel.x += moveX * sel.speed * speedMod * dt;
+        sel.z += moveZ * sel.speed * speedMod * dt;
+        // clamp inside pitch boundaries for PT
+        sel.x = Math.max(-PITCH_W/2 + 2, Math.min(PITCH_W/2 - 2, sel.x));
+        sel.z = Math.max(0, Math.min(PITCH_L/2 - 2, sel.z));
       }
-    }
-    // Resize handler
-    function onResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-    // AI update for goalkeeper and defenders
-    function updateAI(dt) {
-      // Opponent goalkeeper tracks predicted x when ball moving toward their goal
-      const zGoalFar = -pitchLength / 2 + 1;
-      let predictedXFar = ball.position.x;
-      if (state.ballVel.z < -0.01) {
-        const timeToGoal = (zGoalFar - ball.position.z) / state.ballVel.z;
-        predictedXFar = ball.position.x + state.ballVel.x * timeToGoal;
-      }
-      predictedXFar = THREE.MathUtils.clamp(predictedXFar, -goalWidth / 2 + 1, goalWidth / 2 - 1);
-      const dxFar = predictedXFar - keeper.position.x;
-      const maxSpeedFar = keeper.userData.maxSpeed;
-      keeper.position.x += Math.sign(dxFar) * Math.min(Math.abs(dxFar), maxSpeedFar * dt);
-      keeper.rotation.z = THREE.MathUtils.lerp(keeper.rotation.z, -dxFar * 0.05, dt * 5);
-      // Our goalkeeper tracks predicted x when ball moving toward our goal
-      const zGoalNear = pitchLength / 2 - 1;
-      let predictedXNear = ball.position.x;
-      if (state.ballVel.z > 0.01) {
-        const timeToGoalNear = (zGoalNear - ball.position.z) / state.ballVel.z;
-        predictedXNear = ball.position.x + state.ballVel.x * timeToGoalNear;
-      }
-      predictedXNear = THREE.MathUtils.clamp(predictedXNear, -goalWidth / 2 + 1, goalWidth / 2 - 1);
-      const dxNear = predictedXNear - ourKeeper.position.x;
-      const maxSpeedNear = ourKeeper.userData.maxSpeed;
-      ourKeeper.position.x += Math.sign(dxNear) * Math.min(Math.abs(dxNear), maxSpeedNear * dt);
-      ourKeeper.rotation.z = THREE.MathUtils.lerp(ourKeeper.rotation.z, -dxNear * 0.05, dt * 5);
-      // Defenders oscillate in x direction and move slightly forward/backward
-      defenders.forEach((d, i) => {
-        const baseSpeed = d.userData.speedMult || 1;
-        const freq = (0.5 + i * 0.1) * baseSpeed;
-        const amp = (5 + i * 0.5) * baseSpeed;
-        d.position.x = Math.sin((performance.now() * 0.001) * freq + d.userData.phase) * amp + (i - defenders.length / 2 + 0.5) * 10;
-        // Move slightly toward our goal when near ball
-        const distToBall = d.position.distanceTo(ball.position);
-        if (distToBall < 6 && !state.aiCarrier) {
-          // steal the ball
-          state.aiCarrier = d;
-        }
-      });
-      // If defender has ball, move toward our goal (positive z)
-      if (state.aiCarrier) {
-        const carrier = state.aiCarrier;
-        // Move forward
-        const speed = 10;
-        carrier.position.z += speed * dt;
-        // attach ball to front of carrier
-        ball.position.x = carrier.position.x;
-        ball.position.z = carrier.position.z + 1.5;
-        ball.position.y = 0.6;
-        // When reaches near goal, score for them
-        if (carrier.position.z > pitchLength / 2 - 1) {
-          // They scored
-          state.score.them += 1;
-          updateScore();
-          // reset positions
-          resetBall();
-          // reposition defenders back to starting positions
-          defenders.forEach((d, idx) => {
-            const x = (idx - defenders.length / 2 + 0.5) * 10;
-            const z = -30 - idx * 6;
-            d.position.set(x, 2.0, z);
-          });
-        }
-      }
-    }
-    // Update scoreboard UI
-    function updateScore() {
-      document.getElementById('score').textContent = 'Level ' + level + ' | ' + state.score.us + ' - ' + state.score.them;
-    }
-    // Collision detection between ball and keeper
-    function handleCollisions() {
-      // Ball with keeper: treat as cylinder of radius 1.5 and height ~3
-      const dx = ball.position.x - keeper.position.x;
-      const dz = ball.position.z - keeper.position.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      const collisionDist = 1.0 + 1.5;
-      if (dist < collisionDist && state.aiCarrier === null) {
-        // reflect ball velocity
-        const normal = new THREE.Vector3(dx, 0, dz).normalize();
-        const velDot = state.ballVel.dot(normal);
-        if (velDot < 0) {
-          const reflect = normal.multiplyScalar(-2 * velDot);
-          state.ballVel.add(reflect);
-          state.ballVel.multiplyScalar(0.5);
-        }
-      }
-      // Ball with our keeper: bounce back when moving toward our goal
-      {
-        const dxk = ball.position.x - ourKeeper.position.x;
-        const dzk = ball.position.z - ourKeeper.position.z;
-        const distk = Math.sqrt(dxk * dxk + dzk * dzk);
-        const collDistK = 1.0 + 1.5;
-        if (distk < collDistK && state.aiCarrier === null) {
-          const normal = new THREE.Vector3(dxk, 0, dzk).normalize();
-          const velDot = state.ballVel.dot(normal);
-          if (velDot > 0) {
-            const reflect = normal.multiplyScalar(-2 * velDot);
-            state.ballVel.add(reflect);
-            state.ballVel.multiplyScalar(0.5);
+      // Move other PT players loosely toward their role anchor positions
+      ptPlayers.forEach((p,i) => {
+        if (i !== selectedIndex) {
+          let targetX, targetZ;
+          switch (p.role) {
+            case 'RB': targetX = PITCH_W/4; targetZ = PITCH_L/2 - 20; break;
+            case 'RCB': targetX = PITCH_W/8; targetZ = PITCH_L/2 - 25; break;
+            case 'LCB': targetX = -PITCH_W/8; targetZ = PITCH_L/2 - 25; break;
+            case 'LB': targetX = -PITCH_W/4; targetZ = PITCH_L/2 - 20; break;
+            case 'CDM': targetX = 0; targetZ = PITCH_L/2 - 40; break;
+            case 'RCM': targetX = PITCH_W/5; targetZ = PITCH_L/2 - 50; break;
+            case 'LCM': targetX = -PITCH_W/5; targetZ = PITCH_L/2 - 50; break;
+            case 'RW': targetX = PITCH_W/3; targetZ = PITCH_L/2 - 60; break;
+            case 'ST': targetX = 0; targetZ = PITCH_L/2 - 65; break;
+            case 'LW': targetX = -PITCH_W/3; targetZ = PITCH_L/2 - 60; break;
+            case 'GK': targetX = 0; targetZ = PITCH_L/2 - 5; break;
+            default: targetX = p.x; targetZ = p.z; break;
+          }
+          const dx = targetX - p.x;
+          const dz = targetZ - p.z;
+          const dist = Math.hypot(dx, dz);
+          if (dist > 0.5) {
+            p.x += (dx/dist) * p.speed * 0.5 * dt;
+            p.z += (dz/dist) * p.speed * 0.5 * dt;
           }
         }
-      }
-      // Ball with defenders
-      defenders.forEach((d) => {
-        const dx2 = ball.position.x - d.position.x;
-        const dz2 = ball.position.z - d.position.z;
-        const dist2 = Math.sqrt(dx2 * dx2 + dz2 * dz2);
-        const collDist = 1.0 + 0.8;
-        if (dist2 < collDist && state.aiCarrier === null) {
-          // steal ball
-          state.aiCarrier = d;
-        }
       });
-    }
-    // Animation loop
-    function animate() {
-      requestAnimationFrame(animate);
-      const dt = clock.getDelta();
-      // Update player movement (W/A/S/D)
-      const move = new THREE.Vector3();
-      if (state.keys['KeyW']) move.z -= 1;
-      if (state.keys['KeyS']) move.z += 1;
-      if (state.keys['KeyA']) move.x -= 1;
-      if (state.keys['KeyD']) move.x += 1;
-      move.normalize();
-      if (move.lengthSq() > 0 && !state.aiCarrier) {
-        // Transform move relative to camera yaw (we ignore pitch for movement)
-        const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-        const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-        const worldMove = new THREE.Vector3();
-        worldMove.addScaledVector(forward, move.z);
-        worldMove.addScaledVector(right, move.x);
-        worldMove.normalize().multiplyScalar(12 * dt);
-        ball.position.add(worldMove);
-        camera.position.add(worldMove);
-      }
-      // Update ball physics when not stolen
-      if (!state.aiCarrier) {
-        // Apply velocity
-        ball.position.addScaledVector(state.ballVel, dt);
+      // AI for France players: move toward ball if near, otherwise keep formation
+      frPlayers.forEach((p,i) => {
+        let targetX, targetZ;
+        // Goalkeeper tracks ball horizontally when ball in their half
+        if (p.role === 'GK') {
+          targetX = Math.max(-GOAL_W/2 + 2, Math.min(GOAL_W/2 - 2, ball.x));
+          targetZ = -PITCH_L/2 + 5;
+        } else {
+          // If ball is near (within 30 units), chase
+          const dzBall = ball.z - p.z;
+          const dxBall = ball.x - p.x;
+          const dist = Math.hypot(dxBall, dzBall);
+          if (dist < 30) {
+            targetX = ball.x;
+            targetZ = ball.z;
+          } else {
+            // formation positions mirrored
+            switch (p.role) {
+              case 'RB': targetX = -PITCH_W/4; targetZ = -PITCH_L/2 + 20; break;
+              case 'RCB': targetX = -PITCH_W/8; targetZ = -PITCH_L/2 + 25; break;
+              case 'LCB': targetX = PITCH_W/8; targetZ = -PITCH_L/2 + 25; break;
+              case 'LB': targetX = PITCH_W/4; targetZ = -PITCH_L/2 + 20; break;
+              case 'CDM': targetX = 0; targetZ = -PITCH_L/2 + 40; break;
+              case 'RCM': targetX = -PITCH_W/5; targetZ = -PITCH_L/2 + 50; break;
+              case 'LCM': targetX = PITCH_W/5; targetZ = -PITCH_L/2 + 50; break;
+              case 'RW': targetX = -PITCH_W/3; targetZ = -PITCH_L/2 + 60; break;
+              case 'ST': targetX = 0; targetZ = -PITCH_L/2 + 65; break;
+              case 'LW': targetX = PITCH_W/3; targetZ = -PITCH_L/2 + 60; break;
+              default: targetX = p.x; targetZ = p.z; break;
+            }
+          }
+        }
+        const dx = targetX - p.x;
+        const dz = targetZ - p.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist > 0.5) {
+          p.x += (dx/dist) * p.speed * dt;
+          p.z += (dz/dist) * p.speed * dt;
+        }
+        // clamp inside pitch boundaries
+        p.x = Math.max(-PITCH_W/2 + 2, Math.min(PITCH_W/2 - 2, p.x));
+        p.z = Math.max(-PITCH_L/2 + 2, Math.min(0, p.z));
+      });
+      // Move ball if free
+      if (!trapOwner) {
+        ball.x += ball.vx * dt;
+        ball.z += ball.vz * dt;
         // Friction
-        state.ballVel.multiplyScalar(0.98);
-        // Magnus effect (spin)
-        if (state.spin.lengthSq() > 0.001) {
-          const lift = new THREE.Vector3().crossVectors(state.spin, state.ballVel).multiplyScalar(0.05);
-          state.ballVel.add(lift);
-          state.spin.multiplyScalar(0.98);
+        ball.vx *= 0.99;
+        ball.vz *= 0.99;
+        // Spin effect (Magnus) – spinZ adds sideways acceleration
+        if (Math.abs(ball.spinZ) > 0.001) {
+          ball.vx += ball.spinZ * (-ball.vz) * 0.02;
+          ball.vz += ball.spinZ * ball.vx * 0.02;
+          ball.spinZ *= 0.98;
         }
+      } else {
+        // attach ball to trap owner
+        ball.x = trapOwner.x;
+        ball.z = trapOwner.z + (trapOwner.team === 'pt' ? -2 : 2);
+        ball.vx = 0;
+        ball.vz = 0;
       }
-      // Boundaries and scoring for us
-      const maxX = pitchWidth / 2 - 1;
-      const maxZ = pitchLength / 2 - 1;
-      if (ball.position.x < -maxX) { ball.position.x = -maxX; state.ballVel.x *= -0.5; }
-      if (ball.position.x > maxX) { ball.position.x = maxX; state.ballVel.x *= -0.5; }
-      if (ball.position.z < -maxZ) {
-        // At far goal (opponent's goal): check if between posts
-        if (Math.abs(ball.position.x) < goalWidth / 2) {
-          state.score.us += 1;
-          updateScore();
-          // Level up when reaching threshold
-          if (state.score.us >= goalsForNext) {
-            advanceLevel();
+      // Check ball collisions with players
+      function checkCollision(players) {
+        players.forEach(p => {
+          const dx = ball.x - p.x;
+          const dz = ball.z - p.z;
+          const dist = Math.hypot(dx, dz);
+          if (dist < 1.8 && trapLock <= 0) {
+            // assign carrier
+            trapOwner = p;
+            trapLock = 300;
+          }
+        });
+      }
+      checkCollision(ptPlayers);
+      checkCollision(frPlayers);
+      // Ball out-of-bounds and goals
+      const goalZFar = -PITCH_L/2 + 3;
+      const goalZNear = PITCH_L/2 - 3;
+      // Left/right boundaries
+      if (ball.x < -PITCH_W/2 + ball.radius) {
+        ball.x = -PITCH_W/2 + ball.radius;
+        ball.vx *= -0.8;
+      }
+      if (ball.x > PITCH_W/2 - ball.radius) {
+        ball.x = PITCH_W/2 - ball.radius;
+        ball.vx *= -0.8;
+      }
+      // Far goal or behind far
+      if (ball.z < goalZFar) {
+        // far goal (France) – if between posts then score us
+        if (Math.abs(ball.x) < GOAL_W/2) {
+          scoreUs++;
+          if (scoreUs >= goalsForNext) {
+            level++;
+            goalsForNext++;
+            // Increase AI speed and difficulty
+            frPlayers.forEach(p => { p.speed *= 1.1; });
           }
         }
-        resetBall();
+        resetAfterGoal();
       }
-      if (ball.position.z > maxZ) {
-        // At our goal: if ball passes within posts, they score
-        if (Math.abs(ball.position.x) < goalWidth / 2) {
-          state.score.them += 1;
-          updateScore();
+      // Near goal or behind near
+      if (ball.z > goalZNear) {
+        // near goal (Portugal) – if between posts then they score
+        if (Math.abs(ball.x) < GOAL_W/2) {
+          scoreThem++;
         }
-        resetBall();
+        resetAfterGoal();
       }
-      // Keep camera at constant height and looking slightly ahead
-      camera.position.y = 2.5;
-      camera.rotation.order = 'YXZ';
-      camera.rotation.y = yaw;
-      camera.rotation.x = pitch;
-      // Keep camera looking ahead of ball (makes easier to see)
-      const lookTarget = new THREE.Vector3(ball.position.x, 1.5, ball.position.z);
-      camera.lookAt(lookTarget);
-      // Update AI and collisions
-      updateAI(dt);
-      handleCollisions();
-      renderer.render(scene, camera);
     }
-    // Start the game once DOM ready
-    document.addEventListener('DOMContentLoaded', init);
+    function resetAfterGoal() {
+      // reset positions
+      const teams = initTeams();
+      ptPlayers = teams.pt;
+      frPlayers = teams.fr;
+      selectedIndex = 0;
+      ptPlayers[selectedIndex].selected = true;
+      ball.x = 0;
+      ball.z = 0;
+      ball.vx = ball.vz = 0;
+      trapOwner = null;
+      trapLock = 200;
+      // update scoreboard
+      document.getElementById('score').textContent = `Level ${level} | ${scoreUs} – ${scoreThem}`;
+    }
+    function draw() {
+      ctx.clearRect(0,0,width,height);
+      // Draw pitch stripes with perspective
+      for (let i = 0; i < STRIPE_COUNT; i++) {
+        const zStart = -PITCH_L/2 + (i * PITCH_L / STRIPE_COUNT);
+        const zEnd = -PITCH_L/2 + ((i+1) * PITCH_L / STRIPE_COUNT);
+        const color = i % 2 === 0 ? '#036d2a' : '#025a22';
+        // Top edge and bottom edge in screen space for trapezoid slice
+        const topLeft = worldToScreen(-PITCH_W/2, zStart);
+        const topRight = worldToScreen(PITCH_W/2, zStart);
+        const bottomLeft = worldToScreen(-PITCH_W/2, zEnd);
+        const bottomRight = worldToScreen(PITCH_W/2, zEnd);
+        ctx.beginPath();
+        ctx.moveTo(topLeft.x, topLeft.y);
+        ctx.lineTo(topRight.x, topRight.y);
+        ctx.lineTo(bottomRight.x, bottomRight.y);
+        ctx.lineTo(bottomLeft.x, bottomLeft.y);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+      // Draw goals (lines across posts)
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      // far goal
+      const gfarL = worldToScreen(-GOAL_W/2, -PITCH_L/2 + 3);
+      const gfarR = worldToScreen(GOAL_W/2, -PITCH_L/2 + 3);
+      ctx.beginPath();
+      ctx.moveTo(gfarL.x, gfarL.y);
+      ctx.lineTo(gfarR.x, gfarR.y);
+      ctx.stroke();
+      // near goal
+      const gnearL = worldToScreen(-GOAL_W/2, PITCH_L/2 - 3);
+      const gnearR = worldToScreen(GOAL_W/2, PITCH_L/2 - 3);
+      ctx.beginPath();
+      ctx.moveTo(gnearL.x, gnearL.y);
+      ctx.lineTo(gnearR.x, gnearR.y);
+      ctx.stroke();
+      // Draw crowd as small boxes
+      const fanCount = 40;
+      for (let i = 0; i < fanCount; i++) {
+        const zFan = -PITCH_L/2 + i * (PITCH_L / fanCount);
+        const left = worldToScreen(-PITCH_W/2 - 6, zFan);
+        const right = worldToScreen(PITCH_W/2 + 6, zFan);
+        const size = 4 * left.scale;
+        ctx.fillStyle = i % 2 === 0 ? '#0033cc' : '#cc3300';
+        ctx.fillRect(left.x - size/2, left.y - size, size, size * 2);
+        ctx.fillRect(right.x - size/2, right.y - size, size, size * 2);
+      }
+      // Draw France players
+      frPlayers.forEach(p => {
+        drawPlayer(p, 'blue');
+      });
+      // Draw Portugal players
+      ptPlayers.forEach(p => {
+        drawPlayer(p, 'green');
+      });
+      // Draw selected highlight
+      const sel = ptPlayers[selectedIndex];
+      const scSel = worldToScreen(sel.x, sel.z);
+      ctx.beginPath();
+      ctx.arc(scSel.x, scSel.y - 10 * scSel.scale, 15 * scSel.scale, 0, Math.PI * 2);
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Draw ball
+      const scBall = worldToScreen(ball.x, ball.z);
+      const r = ball.radius * scBall.scale * (width / PITCH_W) * 0.5;
+      ctx.beginPath();
+      ctx.arc(scBall.x, scBall.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#f5f5f5';
+      ctx.fill();
+      ctx.strokeStyle = '#333333';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    // Helper to draw a player with basic body/legs as pseudo‑3D person
+    function drawPlayer(p, kit) {
+      const sc = worldToScreen(p.x, p.z);
+      const bodyH = 20 * sc.scale;
+      const bodyW = 10 * sc.scale;
+      const headR = 5 * sc.scale;
+      // body
+      ctx.fillStyle = kit;
+      ctx.fillRect(sc.x - bodyW/2, sc.y - bodyH, bodyW, bodyH);
+      // shorts
+      ctx.fillStyle = kit === 'blue' ? '#ffffff' : '#ff0000';
+      ctx.fillRect(sc.x - bodyW/2, sc.y - bodyH/3, bodyW, bodyH / 3);
+      // socks
+      ctx.fillStyle = kit === 'blue' ? '#ff0000' : '#ffff00';
+      ctx.fillRect(sc.x - bodyW/2, sc.y - bodyH/3 + bodyH/3, bodyW, bodyH / 3);
+      // head
+      ctx.beginPath();
+      ctx.arc(sc.x, sc.y - bodyH - headR, headR, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffe0bd';
+      ctx.fill();
+    }
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+    // Start loop
+    loop();
   })();
   </script>
 </body>
