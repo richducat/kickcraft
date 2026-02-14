@@ -596,6 +596,38 @@ function initEngine() {
   animate();
 }
 
+function makeNumberSprite(text, kitColor){
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+
+  // circle background
+  ctx.beginPath();
+  ctx.arc(128, 128, 110, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fill();
+  ctx.lineWidth = 10;
+  // kitColor outline
+  const hex = '#' + ('000000' + (kitColor >>> 0).toString(16)).slice(-6);
+  ctx.strokeStyle = hex;
+  ctx.stroke();
+
+  // number
+  ctx.fillStyle = 'white';
+  ctx.font = '900 140px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 140);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 2;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const spr = new THREE.Sprite(mat);
+  spr.scale.set(3.2, 3.2, 1);
+  return spr;
+}
+
 function applyHumanoidsToExistingPlayers(){
   if(!humanoidReady || !baseHumanoid) return;
   players.forEach((p) => {
@@ -608,20 +640,28 @@ function applyHumanoidsToExistingPlayers(){
     keep.forEach((c)=>p.mesh.add(c));
 
     const model = THREE.SkeletonUtils.clone(baseHumanoid.scene);
-    // Scale/position to fit our pitch scale
-    model.scale.set(1.1, 1.1, 1.1);
+    // Scale/position to fit our pitch scale (make it clearly “human sized” from this camera)
+    model.scale.set(3.2, 3.2, 3.2);
     model.position.y = 0;
 
-    // Kit colors (very simple tint via material color when possible)
-    const kitColor = (p.team==='p1') ? 0x38bdf8 : 0xff2a6d;
+    // Kit colors (simple but readable): clone materials so team tint doesn’t bleed across players
+    const kitColor = (p.team==='p1') ? 0x2aa8ff : 0xff2a6d;
     model.traverse((o)=>{
       if(o.isMesh && o.material){
-        // If it's a multi-material array, skip for safety.
         if(Array.isArray(o.material)) return;
+        // Clone so each player can be tinted independently
+        o.material = o.material.clone();
         if(o.material.color) o.material.color.setHex(kitColor);
         o.castShadow = false; o.receiveShadow = false;
       }
     });
+
+    // Jersey number (sprite above head)
+    if (p.number) {
+      const sprite = makeNumberSprite(String(p.number), kitColor);
+      sprite.position.set(0, 3.8, 0);
+      model.add(sprite);
+    }
 
     p.mesh.add(model);
 
@@ -681,7 +721,7 @@ function spawnEntities() {
   };
   scene.add(ball.mesh);
 
-  const makePlayer = (team, role, pos, x, z) => {
+  const makePlayer = (team, role, pos, x, z, number) => {
     const col = team==='p1'?CFG.colors.p1:CFG.colors.cpu;
     const mat = new THREE.MeshBasicMaterial({ color: pos==='GK'?CFG.colors.gk:col });
     const group = new THREE.Group();
@@ -698,18 +738,19 @@ function spawnEntities() {
     }
 
     scene.add(group);
-    players.push({ team, role, pos, mesh: group, homePos: new THREE.Vector3(x,0,z), velocity: new THREE.Vector3(), hasBall: false, cooldown: 0 });
+    players.push({ team, role, pos, number: number || '', mesh: group, homePos: new THREE.Vector3(x,0,z), velocity: new THREE.Vector3(), hasBall: false, cooldown: 0 });
   };
 
   players = [];
-  makePlayer('p1', 'cpu', 'GK', 0, 42);
-  makePlayer('p1', 'cpu', 'DEF', 0, 25);
-  makePlayer('p1', 'cpu', 'MID', -10, 10);
-  makePlayer('p1', 'human', 'FWD', 0, 0);
-  makePlayer('cpu', 'cpu', 'GK', 0, -42);
-  makePlayer('cpu', 'cpu', 'DEF', 0, -25);
-  makePlayer('cpu', 'cpu', 'MID', 10, -10);
-  makePlayer('cpu', 'cpu', 'FWD', 0, -5);
+  // Numbers are placeholders; we’ll map to real player rosters next.
+  makePlayer('p1', 'cpu', 'GK', 0, 42, '1');
+  makePlayer('p1', 'cpu', 'DEF', 0, 25, '4');
+  makePlayer('p1', 'cpu', 'MID', -10, 10, '8');
+  makePlayer('p1', 'human', 'FWD', 0, 0, '9');
+  makePlayer('cpu', 'cpu', 'GK', 0, -42, '1');
+  makePlayer('cpu', 'cpu', 'DEF', 0, -25, '5');
+  makePlayer('cpu', 'cpu', 'MID', 10, -10, '6');
+  makePlayer('cpu', 'cpu', 'FWD', 0, -5, '10');
 
   resetPositions();
 }
