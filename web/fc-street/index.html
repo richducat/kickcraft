@@ -263,6 +263,44 @@
   </head>
 
   <body>
+    <script>
+      // Simple diagnostics for mobile/in-app browsers.
+      // If Three.js is blocked (CDN, content blocker, in-app browser), show a clear message.
+      (function () {
+        function show(msg) {
+          var el = document.createElement('div');
+          el.style.position = 'fixed';
+          el.style.inset = '0';
+          el.style.zIndex = '9999';
+          el.style.background = '#0b1220';
+          el.style.color = 'white';
+          el.style.fontFamily = 'system-ui,-apple-system,Segoe UI,Roboto,Arial';
+          el.style.padding = '20px';
+          el.innerHTML =
+            '<div style="max-width:720px;margin:0 auto;">' +
+            '<div style="font-weight:900;font-size:28px;letter-spacing:-0.02em;">KickCraft couldn\'t start</div>' +
+            '<div style="margin-top:10px;opacity:0.85;line-height:1.4;">' + msg + '</div>' +
+            '<div style="margin-top:14px;opacity:0.75;font-size:12px;">Tip: open this link in Safari/Chrome (not inside Telegram), then refresh.</div>' +
+            '</div>';
+          document.body.appendChild(el);
+        }
+
+        window.addEventListener('error', function (e) {
+          show('Error: ' + (e && e.message ? e.message : 'unknown'));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          show('Error: ' + (e && e.reason ? (e.reason.message || String(e.reason)) : 'unknown'));
+        });
+
+        // Delay check so CDN has a chance to load.
+        setTimeout(function () {
+          if (typeof window.THREE === 'undefined') {
+            show('The 3D engine (Three.js) did not load. This is usually caused by an in-app browser or a content blocker.');
+          }
+        }, 1500);
+      })();
+    </script>
+
     <!-- TITLE SCREEN -->
     <div id="title-screen" class="ui-screen bg-slate-950 flex flex-col items-center justify-center" style="display: flex">
       <div class="absolute inset-0 overflow-hidden opacity-30">

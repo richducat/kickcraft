@@ -20,6 +20,41 @@
   <body>
     <div id="root"></div>
 
+    <div id="diag" style="position:fixed; inset:0; display:none; z-index:9999; background:#0b1220; color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; padding:20px;">
+      <div style="max-width:720px; margin:0 auto;">
+        <div style="font-weight:900; font-size:28px; letter-spacing:-0.02em;">KickCraft couldn’t start</div>
+        <div id="diag-msg" style="margin-top:10px; opacity:0.85; line-height:1.4;"></div>
+        <div style="margin-top:14px; opacity:0.75; font-size:12px;">
+          Tip: open this link in Safari/Chrome (not inside Telegram), then refresh.
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function(){
+        function show(msg){
+          var box=document.getElementById('diag');
+          var m=document.getElementById('diag-msg');
+          if(!box||!m) return;
+          m.textContent=msg;
+          box.style.display='block';
+        }
+        window.addEventListener('error', function(e){
+          show('Error: ' + (e && e.message ? e.message : 'unknown'));
+        });
+        window.addEventListener('unhandledrejection', function(e){
+          show('Error: ' + (e && e.reason ? (e.reason.message || String(e.reason)) : 'unknown'));
+        });
+        setTimeout(function(){
+          if(typeof window.React==='undefined' || typeof window.ReactDOM==='undefined'){
+            show('React did not load (blocked CDN).');
+          } else if (!document.querySelector('script[src*="babel"]')) {
+            show('Babel did not load (blocked CDN).');
+          }
+        }, 1500);
+      })();
+    </script>
+
     <script type="text/babel">
       // === YOUR COMPONENT EXACTLY AS PROVIDED ===
       const { useEffect, useRef, useState } = React;
