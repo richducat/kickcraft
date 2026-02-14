@@ -7,6 +7,9 @@
 
   <!-- Vendored library (mobile-safe: no external CDN required) -->
   <script src="../vendor/three.r128.min.js"></script>
+  <!-- Three.js examples helpers (vendored) -->
+  <script src="../vendor/three-extras/GLTFLoader.js"></script>
+  <script src="../vendor/three-extras/SkeletonUtils.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;800&family=Teko:wght@500&display=swap');
@@ -455,6 +458,11 @@ let scores = { p1: 0, cpu: 0 }, matchTime = 0;
 let input = { x:0, y:0, active:false, sprint:false };
 let engineInitialized = false;
 
+// --- FC Mobile vibe (placeholder): humanoid model + animations ---
+let baseHumanoid = null;          // { scene, animations }
+let humanoidMixerById = new Map();
+let humanoidReady = false;
+
 // --- MENU LOGIC ---
 const initialSquad = [
   { id: 1, name: "Donnarumma", number: "99", pos: "GK", x: 50, y: 88, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Gianluigi_Donnarumma_Euro_2020_Preview.jpg/400px-Gianluigi_Donnarumma_Euro_2020_Preview.jpg" },
@@ -568,7 +576,66 @@ function initEngine() {
   setupInputs();
 
   document.getElementById('debug-status').innerText = "Game Active";
+
+  // Load a lightweight humanoid (placeholder) so we can swap cylinders → people.
+  // Note: Soldier.glb is from three.js examples (MIT) and is a temporary placeholder.
+  try {
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+      './assets/Soldier.glb',
+      (gltf) => {
+        baseHumanoid = { scene: gltf.scene, animations: gltf.animations || [] };
+        humanoidReady = true;
+        applyHumanoidsToExistingPlayers();
+      },
+      undefined,
+      () => {}
+    );
+  } catch (e) {}
+
   animate();
+}
+
+function applyHumanoidsToExistingPlayers(){
+  if(!humanoidReady || !baseHumanoid) return;
+  players.forEach((p) => {
+    // If it already has a skinned humanoid, skip.
+    if (p.__humanoidApplied) return;
+    // Keep the selection ring for the human player.
+    const keep = [];
+    p.mesh.children.forEach((c) => { if (c && c.geometry && c.geometry.type === 'RingGeometry') keep.push(c); });
+    p.mesh.clear();
+    keep.forEach((c)=>p.mesh.add(c));
+
+    const model = THREE.SkeletonUtils.clone(baseHumanoid.scene);
+    // Scale/position to fit our pitch scale
+    model.scale.set(1.1, 1.1, 1.1);
+    model.position.y = 0;
+
+    // Kit colors (very simple tint via material color when possible)
+    const kitColor = (p.team==='p1') ? 0x38bdf8 : 0xff2a6d;
+    model.traverse((o)=>{
+      if(o.isMesh && o.material){
+        // If it's a multi-material array, skip for safety.
+        if(Array.isArray(o.material)) return;
+        if(o.material.color) o.material.color.setHex(kitColor);
+        o.castShadow = false; o.receiveShadow = false;
+      }
+    });
+
+    p.mesh.add(model);
+
+    // Animation mixer
+    const mixer = new THREE.AnimationMixer(model);
+    // Prefer "Run" when moving, otherwise "Idle".
+    const idleClip = baseHumanoid.animations.find(a => /idle/i.test(a.name)) || baseHumanoid.animations[0];
+    const runClip  = baseHumanoid.animations.find(a => /run/i.test(a.name));
+    p.__idle = idleClip ? mixer.clipAction(idleClip) : null;
+    p.__run  = runClip  ? mixer.clipAction(runClip)  : null;
+    if(p.__idle){ p.__idle.play(); }
+    humanoidMixerById.set(p, mixer);
+    p.__humanoidApplied = true;
+  });
 }
 
 function buildWorld() {
@@ -721,10 +788,26 @@ function animate() {
         dir.normalize();
         p.velocity.lerp(dir.multiplyScalar(spd), dt*5);
         p.mesh.lookAt(p.mesh.position.clone().add(dir));
+
+        // Animation: run when moving
+        const mx = humanoidMixerById.get(p);
+        if (mx && p.__run && p.__idle) {
+          if (!p.__run.isRunning()) { p.__idle.stop(); p.__run.reset().play(); }
+        }
       } else {
         p.velocity.lerp(new THREE.Vector3(), dt*5);
+
+        // Animation: idle when still
+        const mx = humanoidMixerById.get(p);
+        if (mx && p.__run && p.__idle) {
+          if (p.__run.isRunning()) { p.__run.stop(); p.__idle.reset().play(); }
+        }
       }
       p.mesh.position.add(p.velocity.clone().multiplyScalar(dt));
+
+      // Update mixers
+      const mx2 = humanoidMixerById.get(p);
+      if (mx2) mx2.update(dt);
 
       if (!ball.owner && p.cooldown<=0 && p.mesh.position.distanceTo(ball.mesh.position) < 1.5) {
         ball.owner = p; p.hasBall = true;
