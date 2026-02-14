@@ -152,6 +152,60 @@
           function mouseup(e){ if(e.button!==0) return; if(!state.charging) return; state.charging=false; shoot(); }
           function context(e){ e.preventDefault(); }
 
+          // Touch controls (mobile-first):
+          // - 1 finger press/drag/release = aim + shoot (hold longer = stronger shot)
+          // - 2 finger tap = pass to selected teammate
+          // - swipe left/right = switch selected teammate
+          let touchStartX = 0;
+          let touchStartT = 0;
+          function touchToWorld(touch){
+            const r = cvs.getBoundingClientRect();
+            const rawX = (touch.clientX - r.left) * (cvs.width / r.width) / dpr;
+            const rawY = (touch.clientY - r.top)  * (cvs.height / r.height) / dpr;
+            return unproject(rawX, rawY);
+          }
+          function touchstart(e){
+            if (!e.changedTouches || e.changedTouches.length === 0) return;
+            if (e.touches && e.touches.length >= 2) {
+              e.preventDefault();
+              passToSelected();
+              return;
+            }
+            const t = e.changedTouches[0];
+            const p = touchToWorld(t);
+            state.charging = true;
+            state.t0 = performance.now();
+            touchStartT = state.t0;
+            touchStartX = t.clientX;
+            state.aim.x = p.x; state.aim.y = p.y;
+            // No shift/ctrl on mobile
+            state.mod.shift = false; state.mod.ctrl = false;
+            e.preventDefault();
+          }
+          function touchmove(e){
+            if (!state.charging) return;
+            const t = e.changedTouches[0];
+            const p = touchToWorld(t);
+            state.aim = p;
+            e.preventDefault();
+          }
+          function touchend(e){
+            if (!state.charging) return;
+            const t = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+            const dt = performance.now() - touchStartT;
+            const dx = t ? (t.clientX - touchStartX) : 0;
+            // Swipe to change selected teammate
+            if (Math.abs(dx) > 60 && dt < 350) {
+              cycleSelected(dx > 0 ? 1 : -1);
+              state.charging = false;
+              e.preventDefault();
+              return;
+            }
+            state.charging = false;
+            shoot();
+            e.preventDefault();
+          }
+
           function keydown(e){ const k = e.key; if (k in state.keys) state.keys[k] = true; if (k === 'Tab') { e.preventDefault(); cycleSelected(e.shiftKey?-1:1); } }
           function keyup(e){ const k=e.key; if (k in state.keys) state.keys[k] = false; }
 
@@ -161,6 +215,11 @@
           window.addEventListener('contextmenu', context);
           window.addEventListener('keydown', keydown);
           window.addEventListener('keyup', keyup);
+
+          // Mobile touch listeners on the canvas (avoid scrolling)
+          cvs.addEventListener('touchstart', touchstart, { passive: false });
+          cvs.addEventListener('touchmove', touchmove, { passive: false });
+          cvs.addEventListener('touchend', touchend, { passive: false });
 
           function cycleSelected(dir){ const n = state.mates.length; state.selectedIdx = (((state.selectedIdx + dir) % n) + n) % n; }
 
