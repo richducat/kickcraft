@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>KickCraft — Play</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background:#0b0b0b; color:#fff; }
+      .wrap { max-width: 860px; margin: 0 auto; padding: 32px 16px; }
+      a { color: #38bdf8; }
+      .card { border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 16px; margin: 14px 0; background: rgba(255,255,255,0.04); }
+      .title { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+      .sub { color: rgba(255,255,255,0.7); margin-top: 6px; }
+      .btn { display: inline-block; background: #38bdf8; color:#001018; font-weight: 800; padding: 10px 14px; border-radius: 12px; text-decoration: none; margin-top: 10px; }
+      .btn.secondary { background: rgba(255,255,255,0.12); color:#fff; }
+      .row { display:flex; gap: 10px; flex-wrap: wrap; }
+      .small { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 10px; }
+      code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="title">KickCraft — Play Links</div>
+      <div class="sub">Prototypes for Everett. Pick a mode and play in your browser.</div>
+
+      <div class="card">
+        <div style="font-size:18px; font-weight:800;">FC Street</div>
+        <div class="sub">3D match prototype + Street Run (WIP).</div>
+        <div class="row">
+          <a class="btn" href="./web/fc-street/">Open FC Street</a>
+        </div>
+        <div class="small">Controls: joystick + buttons on mobile, WASD/Space/Z on desktop.</div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:18px; font-weight:800;">KickCraft 11v11</div>
+        <div class="sub">Pseudo-3D canvas match prototype.</div>
+        <div class="row">
+          <a class="btn" href="./web/kickcraft-11v11/">Open 11v11</a>
+          <a class="btn secondary" href="./web/kickcraft-11v11/kickcraft3d.zip">Download old zip</a>
+        </div>
+        <div class="small">Controls: WASD / arrows to move selected player, <code>Tab</code> to switch, left click shoot, right click pass.</div>
+      </div>
+
+      <div class="small">
+        Tip: If something is slow on iPad, try closing other tabs, or switch to desktop.
+      </div>
+    </div>
+  </body>
+</html>
