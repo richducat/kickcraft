@@ -167,8 +167,12 @@
 
       // Register service worker
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        window.addEventListener('load', async () => {
+          try {
+            const reg = await navigator.serviceWorker.register('./sw.js');
+            // Nudge update checks so we don’t get stuck on a bad cached build.
+            if (reg && reg.update) reg.update();
+          } catch (e) {}
         });
       }
     </script>

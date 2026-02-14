@@ -1,7 +1,7 @@
 // KickCraft service worker (GitHub Pages)
 // Simple cache-first for app shell + game pages.
 
-const VERSION = 'kickcraft-v1';
+const VERSION = 'kickcraft-v2';
 const CORE_ASSETS = [
   '/kickcraft/',
   '/kickcraft/index.html',
