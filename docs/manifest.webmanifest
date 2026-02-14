@@ -1,0 +1,22 @@
+{
+  "name": "KickCraft",
+  "short_name": "KickCraft",
+  "description": "Soccer game prototypes (FC Street + 11v11) — mobile-first.",
+  "start_url": "/kickcraft/?source=pwa",
+  "scope": "/kickcraft/",
+  "display": "standalone",
+  "background_color": "#0b0b0b",
+  "theme_color": "#38bdf8",
+  "icons": [
+    {
+      "src": "/kickcraft/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/kickcraft/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

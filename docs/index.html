@@ -2,49 +2,175 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>KickCraft — Play</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#38bdf8" />
+
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+
+    <title>KickCraft</title>
+
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background:#0b0b0b; color:#fff; }
-      .wrap { max-width: 860px; margin: 0 auto; padding: 32px 16px; }
-      a { color: #38bdf8; }
-      .card { border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 16px; margin: 14px 0; background: rgba(255,255,255,0.04); }
-      .title { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
-      .sub { color: rgba(255,255,255,0.7); margin-top: 6px; }
-      .btn { display: inline-block; background: #38bdf8; color:#001018; font-weight: 800; padding: 10px 14px; border-radius: 12px; text-decoration: none; margin-top: 10px; }
-      .btn.secondary { background: rgba(255,255,255,0.12); color:#fff; }
-      .row { display:flex; gap: 10px; flex-wrap: wrap; }
-      .small { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 10px; }
-      code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 8px; }
+      :root { color-scheme: dark; }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        margin: 0;
+        background: #0b0b0b;
+        color: #fff;
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(11, 11, 11, 0.9);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #38bdf8;
+        box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
+      }
+      .btn {
+        background: rgba(255,255,255,0.12);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-weight: 800;
+      }
+      .btn.primary {
+        background: #38bdf8;
+        color: #001018;
+        border-color: rgba(56, 189, 248, 0.5);
+      }
+      .wrap { max-width: 980px; margin: 0 auto; padding: 14px 12px; }
+      .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+      @media (min-width: 920px) { .grid { grid-template-columns: 1fr 1fr; } }
+      .card {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .title { font-size: 18px; font-weight: 900; }
+      .sub { color: rgba(255,255,255,0.7); margin-top: 6px; line-height: 1.4; }
+      .row { display:flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+      .hint { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 10px; }
+
+      /* "SPA" player */
+      .player {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        background: #000;
+        display: none;
+        flex-direction: column;
+      }
+      .playerbar {
+        padding: 10px 12px;
+        background: rgba(0,0,0,0.75);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      iframe {
+        border: 0;
+        width: 100%;
+        flex: 1;
+        background: #000;
+      }
     </style>
   </head>
+
   <body>
-    <div class="wrap">
-      <div class="title">KickCraft — Play Links</div>
-      <div class="sub">Prototypes for Everett. Pick a mode and play in your browser.</div>
-
-      <div class="card">
-        <div style="font-size:18px; font-weight:800;">FC Street</div>
-        <div class="sub">3D match prototype + Street Run (WIP).</div>
-        <div class="row">
-          <a class="btn" href="./web/fc-street/">Open FC Street</a>
-        </div>
-        <div class="small">Controls: joystick + buttons on mobile, WASD/Space/Z on desktop.</div>
-      </div>
-
-      <div class="card">
-        <div style="font-size:18px; font-weight:800;">KickCraft 11v11</div>
-        <div class="sub">Pseudo-3D canvas match prototype.</div>
-        <div class="row">
-          <a class="btn" href="./web/kickcraft-11v11/">Open 11v11</a>
-          <a class="btn secondary" href="./web/kickcraft-11v11/kickcraft3d.zip">Download old zip</a>
-        </div>
-        <div class="small">Controls: WASD / arrows to move selected player, <code>Tab</code> to switch, left click shoot, right click pass.</div>
-      </div>
-
-      <div class="small">
-        Tip: If something is slow on iPad, try closing other tabs, or switch to desktop.
-      </div>
+    <div class="topbar">
+      <div class="brand"><span class="dot"></span>KickCraft</div>
+      <button class="btn" id="installBtn" style="display:none;">Install</button>
     </div>
+
+    <div class="wrap">
+      <div class="grid">
+        <div class="card">
+          <div class="title">FC Street</div>
+          <div class="sub">Street soccer vibes. 3D match prototype + Street Run (WIP). Mobile-first controls.</div>
+          <div class="row">
+            <button class="btn primary" onclick="openGame('./web/fc-street/')">Play</button>
+          </div>
+          <div class="hint">If you’re on iPhone: open in Safari, then you can “Add to Home Screen.”</div>
+        </div>
+
+        <div class="card">
+          <div class="title">KickCraft 11v11</div>
+          <div class="sub">Fast 11v11 prototype. Mobile touch controls are built-in.</div>
+          <div class="row">
+            <button class="btn primary" onclick="openGame('./web/kickcraft-11v11/')">Play</button>
+            <a class="btn" href="./web/kickcraft-11v11/kickcraft3d.zip">Old build (zip)</a>
+          </div>
+          <div class="hint">Touch: drag + release to shoot • two-finger tap to pass • swipe to switch player.</div>
+        </div>
+      </div>
+
+      <div class="hint" style="margin-top:14px;">This is a PWA “app shell” so it behaves like an installable app while we polish toward App Store quality.</div>
+    </div>
+
+    <div class="player" id="player">
+      <div class="playerbar">
+        <div style="font-weight:900;">KickCraft</div>
+        <button class="btn" onclick="closeGame()">Back</button>
+      </div>
+      <iframe id="frame" src="about:blank" allow="fullscreen; gamepad; autoplay" referrerpolicy="no-referrer"></iframe>
+    </div>
+
+    <script>
+      // SPA-style in-app player (iframe) to feel like one app.
+      function openGame(path) {
+        document.getElementById('player').style.display = 'flex';
+        document.getElementById('frame').src = path;
+      }
+      function closeGame() {
+        document.getElementById('frame').src = 'about:blank';
+        document.getElementById('player').style.display = 'none';
+      }
+
+      // PWA install prompt (Android/Chrome)
+      let deferredPrompt = null;
+      const installBtn = document.getElementById('installBtn');
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.style.display = 'inline-block';
+      });
+      installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      });
+
+      // Register service worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>
