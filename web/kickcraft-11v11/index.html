@@ -4,11 +4,10 @@
     <meta charset="UTF-8" />
     <title>KickCraft — Realistic 11v11 (pseudo-3D 2D)</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <!-- React 18 + ReactDOM via CDN -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Babel so we can ship this as a single file without a build step -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Vendored scripts (mobile-safe: no external CDN required) -->
+    <script src="../vendor/react.18.prod.min.js"></script>
+    <script src="../vendor/react-dom.18.prod.min.js"></script>
+    <script src="../vendor/babel.min.js"></script>
     <style>
       :root { color-scheme: dark; }
       html, body { margin:0; background:#0b0b0b; color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
