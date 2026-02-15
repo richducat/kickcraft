@@ -139,8 +139,17 @@
     </div>
 
     <script>
-      // SPA-style in-app player (iframe) to feel like one app.
+      // SPA-style app shell.
+      // NOTE: iOS Safari + in-app browsers can be flaky with WebGL inside iframes.
+      // On mobile, open the game directly (full page) for maximum compatibility.
+      function isMobile(){
+        return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+      }
       function openGame(path) {
+        if (isMobile()) {
+          window.location.href = path;
+          return;
+        }
         document.getElementById('player').style.display = 'flex';
         document.getElementById('frame').src = path;
       }
