@@ -140,6 +140,21 @@
       opacity: var(--fx-overlay-strength);
     }
 
+    body[data-mode="title"] #game-container,
+    body[data-mode="squad"] #game-container {
+      filter: blur(8px) brightness(0.65);
+      transform: scale(1.05);
+      transition: filter 1.2s ease, transform 1.2s ease;
+    }
+
+    body[data-mode="playing"] #game-container,
+    body[data-mode="fulltime"] #game-container,
+    body[data-mode="paused"] #game-container {
+      filter: blur(0px) brightness(1.0);
+      transform: scale(1.0);
+      transition: filter 0.8s ease, transform 0.8s ease;
+    }
+
     #broadcast-fx::after {
       content: "";
       position: absolute;
@@ -182,6 +197,79 @@
         0 24px 80px rgba(0, 0, 0, 0.8),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
+    
+    .player-card {
+      width: 130px;
+      height: 190px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(0,0,0,0.4));
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease;
+      cursor: pointer;
+      opacity: 0;
+      animation: popIn 0.4s ease forwards;
+    }
+    .player-card:hover {
+      transform: translateY(-8px) scale(1.05);
+      box-shadow: 0 16px 48px rgba(188,230,0,0.3);
+      border-color: rgba(188,230,0,0.8);
+    }
+    .card-rating {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--cta-a);
+      position: absolute;
+      top: 6px;
+      left: 10px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+    }
+    .card-pos {
+      font-size: 13px;
+      color: rgba(255,255,255,0.8);
+      position: absolute;
+      top: 32px;
+      left: 10px;
+      font-weight: 600;
+    }
+    .card-img-placeholder {
+      width: 80px;
+      height: 80px;
+      margin-top: 18px;
+      background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%);
+      border-radius: 50%;
+      mask-image: radial-gradient(circle, white, black);
+      -webkit-mask-image: -webkit-radial-gradient(circle, white, black);
+    }
+    .card-name {
+      margin-top: auto;
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: center;
+      width: 100%;
+    }
+    .card-stats {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.6);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 6px;
+    }
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
 
     .action-btn {
       border: 0;
@@ -198,6 +286,28 @@
         0 8px 16px rgba(188, 230, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.6);
       transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+    }
+    
+    .ripple-target {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .ripple-effect {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.4);
+      transform: scale(0);
+      animation: rippleAnim 0.6s linear forwards;
+      pointer-events: none;
+      width: 100px;
+      height: 100px;
+      margin-top: -50px;
+      margin-left: -50px;
+    }
+    
+    @keyframes rippleAnim {
+      to { transform: scale(4); opacity: 0; }
     }
 
     .action-btn:hover {
@@ -501,154 +611,68 @@
 
     #scoreboard {
       position: absolute;
-      left: 14px;
-      top: 14px;
-      min-width: min(88vw, 292px);
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 8px;
-      border-radius: 7px;
+      align-items: stretch;
+      height: 44px;
+      border-radius: 22px;
+      background: rgba(10, 15, 25, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      z-index: 50;
+      color: #fff;
+      font-family: "Teko", "Avenir Next Condensed", sans-serif;
       overflow: hidden;
-      border: 1px solid rgba(188, 212, 237, 0.28);
-      background: linear-gradient(154deg, rgba(12, 25, 47, 0.92), rgba(8, 17, 36, 0.95));
-      box-shadow:
-        0 8px 18px rgba(0, 0, 0, 0.32),
-        inset 0 1px 0 rgba(255, 255, 255, 0.14);
       pointer-events: auto;
     }
 
-    #scoreboard::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      height: 1px;
-      background: rgba(255, 255, 255, 0.2);
-      pointer-events: none;
-    }
-
-    .score-box {
-      min-width: 66px;
-      padding: 4px 6px;
-      border-radius: 6px;
+    .sb-team {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 5px;
-      position: relative;
+      padding: 0 16px;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 1px;
       background: rgba(255, 255, 255, 0.05);
     }
 
-    #hud-rank {
-      min-width: 38px;
-      height: 35px;
-      border-radius: 6px;
-      border: 1px solid rgba(210, 232, 250, 0.3);
-      background: linear-gradient(160deg, rgba(28, 54, 87, 0.8), rgba(14, 31, 56, 0.9));
-      color: #d5ebff;
-      display: grid;
-      place-items: center;
-      font-family: "Haettenschweiler", "Impact", "Arial Black", sans-serif;
-      font-size: 0.9rem;
-      letter-spacing: 0.04em;
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+    .sb-city {
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 2px solid var(--city);
     }
 
-    .score-box.city::after,
-    .score-box.away::after {
-      content: "";
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      bottom: 0;
-      height: 2px;
-      border-radius: 999px;
+    .sb-away {
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 2px solid var(--away);
     }
 
-    .score-box.city::after {
-      background: linear-gradient(90deg, rgba(56, 198, 255, 0.2), var(--city), rgba(56, 198, 255, 0.2));
+    .sb-tag {
+      opacity: 0.8;
+      font-size: 16px;
+      margin: 0 6px;
     }
 
-    .score-box.away::after {
-      background: linear-gradient(90deg, rgba(255, 47, 121, 0.2), var(--away), rgba(255, 47, 121, 0.2));
+    .sb-score {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--cta-a);
+      width: 20px;
+      text-align: center;
     }
 
-    .team-top {
+    .sb-timer {
       display: flex;
       align-items: center;
-      gap: 5px;
-    }
-
-    .team-crest {
-      width: 16px;
-      height: 16px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.32);
-      box-shadow: 0 0 0 1px rgba(2, 10, 19, 0.42);
-      background-color: rgba(255, 255, 255, 0.08);
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: cover;
-    }
-
-    .team-crest.city {
-      background-image: url("assets/mci-crest.svg");
-    }
-
-    .team-crest.away {
-      background-image: url("assets/rma-crest.svg");
-    }
-
-    .team-tag {
-      font-size: 0.56rem;
-      color: #d8eafd;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      font-weight: 800;
-      font-family: "Haettenschweiler", "Impact", "Arial Black", sans-serif;
-    }
-
-    .team-sub {
-      display: none;
-    }
-
-    .score-value {
-      margin-top: 0;
-      font-family: "Haettenschweiler", "Impact", "Arial Black", sans-serif;
-      font-size: 1.56rem;
-      line-height: 1;
-      letter-spacing: 0.02em;
-      color: #ffffff;
-    }
-
-    #timer-box {
-      min-width: 84px;
-      display: grid;
-      place-items: center;
-      align-content: center;
-      padding: 3px 8px;
-      background: rgba(2, 9, 23, 0.72);
-      border-left: 1px solid rgba(255, 255, 255, 0.1);
-      border-right: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 6px;
-    }
-
-    .timer-label {
-      font-size: 0.43rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #b8cfe7;
-      margin-bottom: 0;
-    }
-
-    #game-timer {
-      font-family: "Haettenschweiler", "Impact", "Arial Black", sans-serif;
-      font-size: 1.54rem;
-      letter-spacing: 0.02em;
-      line-height: 1;
-      color: #f3f9ff;
+      justify-content: center;
+      padding: 0 16px;
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: 1px;
+      min-width: 80px;
     }
 
     #pause-btn {
@@ -1118,35 +1142,44 @@
       #broadcast-fx {
         opacity: calc(var(--fx-overlay-strength) * 0.8);
       }
+    }    @keyframes big-shake {
+      0% { transform: translate(0, 0) rotate(0); }
+      10% { transform: translate(-6px, 4px) rotate(-1.5deg); }
+      20% { transform: translate(6px, -4px) rotate(1.5deg); }
+      30% { transform: translate(-4px, 3px) rotate(-1deg); }
+      40% { transform: translate(4px, -3px) rotate(1deg); }
+      50% { transform: translate(-2px, 2px) rotate(-0.5deg); }
+      60% { transform: translate(2px, -2px) rotate(0.5deg); }
+      100% { transform: translate(0, 0) rotate(0); }
+    }
+    .shake-intense {
+      animation: big-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
     }
   </style>
 </head>
 
 <body>
   <div id="game-shell">
+    
+    <!-- Power Bar -->
+    <div id="power-bar-container" class="absolute bottom-[25%] left-1/2 -translate-x-1/2 w-48 h-3 bg-white/20 rounded-full border border-white/40 overflow-hidden opacity-0 transition-opacity duration-200 pointer-events-none z-50">
+      <div id="power-bar-fill" class="h-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 w-0"></div>
+    </div>
     <div id="game-container"></div>
     <div id="broadcast-fx" aria-hidden="true"></div>
 
     <div id="ui-layer">
       <div id="scoreboard" class="interactive">
-        <div id="hud-rank">643</div>
-        <div class="score-box city">
-          <div class="team-top">
-            <span class="team-crest city" aria-hidden="true"></span>
-            <div class="team-tag">MCI</div>
-          </div>
-          <div id="s-p1" class="score-value">0</div>
+        <div class="sb-team sb-city">
+          <span class="sb-tag">MCI</span>
+          <span id="s-p1" class="sb-score">0</span>
         </div>
-        <div id="timer-box">
-          <span class="timer-label">1ST</span>
+        <div id="timer-box" class="sb-timer">
           <span id="game-timer">03:00</span>
         </div>
-        <div class="score-box away">
-          <div class="team-top">
-            <span class="team-crest away" aria-hidden="true"></span>
-            <div class="team-tag">RMA</div>
-          </div>
-          <div id="s-cpu" class="score-value">0</div>
+        <div class="sb-team sb-away">
+          <span id="s-cpu" class="sb-score">0</span>
+          <span class="sb-tag">RMA</span>
         </div>
       </div>
 
@@ -1251,11 +1284,11 @@
       goalHeight: 3.6,
       matchDurationSec: 180,
       goalPauseSec: 1.05,
-      playerSpeed: 13.8,
-      sprintSpeed: 20.0,
-      cpuSpeed: 13.5,
-      gravity: 24,
-      ballDragPerSec: 0.62,
+      playerSpeed: 15.0,
+      sprintSpeed: 23.5,
+      cpuSpeed: 14.5,
+      gravity: 26,
+      ballDragPerSec: 0.45,
       pickupRadius: 2.1,
       playerRadius: 0.78,
       collisionResolve: 0.9,
@@ -1276,6 +1309,35 @@
       touchNoise: 1.15,
       looseBallGroundFriction: 1.4,
     };
+
+// --- AUDIO (Synth) ---
+const SFX = {
+    ctx: null,
+    init() {
+        if(this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    },
+    play(freq, type, dur, vol) {
+        if(!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.1, this.ctx.currentTime + dur);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + dur);
+    },
+    kick() { this.play(150, 'sine', 0.1, 0.3); },
+    goal() { 
+        this.play(200, 'square', 0.8, 0.2); 
+        setTimeout(() => this.play(300, 'square', 0.8, 0.2), 100);
+        setTimeout(() => this.play(400, 'square', 1.0, 0.2), 200);
+    },
+    tackle() { this.play(80, 'sawtooth', 0.15, 0.15); }
+};
 
     const MODES = Object.freeze({
       TITLE: "title",
@@ -1395,7 +1457,24 @@
       switchQueued: false,
       slideQueued: false,
       teamPressQueued: false,
+      isChargingShoot: false,
+      isChargingPass: false,
+      shootCharge: 0,
+      passCharge: 0,
     };
+    
+    function updatePowerBarUI(charge) {
+        const container = $("power-bar-container");
+        const fill = $("power-bar-fill");
+        if (!container || !fill) return;
+        if (charge > 0) {
+            container.style.opacity = 1;
+            fill.style.width = (charge * 100) + "%";
+        } else {
+            container.style.opacity = 0;
+            fill.style.width = "0%";
+        }
+    }
 
     function $(id) {
       return document.getElementById(id);
@@ -1480,26 +1559,33 @@
     function renderSquadPreview() {
       const pitch = $("squad-pitch");
       if (!pitch) return;
+      
+      pitch.className = "flex flex-wrap gap-4 p-4 justify-center items-center overflow-y-auto max-h-[60vh] mt-4 z-10 w-full";
       pitch.innerHTML = "";
 
       SQUAD_PREVIEW.forEach((player, index) => {
-        const node = document.createElement("div");
-        node.className = "squad-node";
-        node.style.left = player.x + "%";
-        node.style.top = player.y + "%";
-        node.style.animationDelay = (index * 24) + "ms";
+        const rating = player.role === "GK" ? 89 : 85 + Math.floor(Math.random() * 5);
+        const pace = 80 + Math.floor(Math.random() * 15);
+        const sho = 75 + Math.floor(Math.random() * 18);
+        const pas = 78 + Math.floor(Math.random() * 14);
 
-        const avatar = document.createElement("div");
-        avatar.className = "squad-avatar" + (player.role === "GK" ? " gk" : "");
-        avatar.textContent = initialsFromName(player.name);
+        const card = document.createElement("div");
+        card.className = "player-card";
+        card.style.animationDelay = (index * 40) + "ms";
 
-        const label = document.createElement("div");
-        label.className = "squad-label";
-        label.textContent = player.role + "  " + player.name;
+        card.innerHTML = `
+          <div class="card-rating">${rating}</div>
+          <div class="card-pos">${player.role}</div>
+          <div class="card-img-placeholder"></div>
+          <div class="card-name">${player.name}</div>
+          <div class="card-stats">
+            <span>PAC ${pace}</span>
+            <span>SHO ${sho}</span>
+            <span>PAS ${pas}</span>
+          </div>
+        `;
 
-        node.appendChild(avatar);
-        node.appendChild(label);
-        pitch.appendChild(node);
+        pitch.appendChild(card);
       });
     }
 
@@ -2556,7 +2642,7 @@
       const material = new THREE.LineBasicMaterial({
         color: 0x8de4ff,
         transparent: true,
-        opacity: renderProfile && renderProfile.mobileLike ? 0.18 : 0.34,
+        opacity: 0.85,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       });
@@ -2594,10 +2680,10 @@
         trail.line.geometry.setFromPoints(trail.points);
 
         const ballSpeed = Math.hypot(ball.velocity.x, ball.velocity.z);
-        trail.line.visible = ballSpeed > 6 || !ball.owner;
+        trail.line.visible = ballSpeed > 10 || !ball.owner;
         trail.line.material.opacity = Math.min(
-          renderProfile && renderProfile.mobileLike ? 0.22 : 0.38,
-          0.08 + ballSpeed * 0.008
+          0.85,
+          0.2 + ballSpeed * 0.02
         );
       }
     }
@@ -2771,6 +2857,7 @@
 
     function releaseBall(player, horizontalVelocity, verticalVelocity, spin = 0) {
       if (!ball || !player) return;
+      SFX.init(); SFX.kick();
       player.hasBall = false;
       if (ball.owner === player) ball.owner = null;
       ball.velocity.set(horizontalVelocity.x, verticalVelocity, horizontalVelocity.z);
@@ -2900,6 +2987,7 @@
 
     function performSteal(player) {
       if (!player || mode !== MODES.PLAYING || player.stealCooldown > 0) return;
+      SFX.init(); SFX.tackle();
       player.stealTimer = CFG.stealCooldownSec;
       player.stealCooldown = CFG.stealCooldownSec;
       player.cooldown = Math.max(player.cooldown, 0.18);
@@ -2931,12 +3019,13 @@
       }
       gameState.duelPulse = Math.max(gameState.duelPulse, won ? 0.24 : 0.14);
       if (player.isHuman) {
-        gameState.cameraKick = Math.min(1, gameState.cameraKick + (won ? 0.12 : 0.06));
+        gameState.cameraKick += won ? 0.5 : 0.2;
       }
     }
 
     function performSlideTackle(player) {
       if (!player || mode !== MODES.PLAYING || player.slideCooldown > 0 || player.cooldown > 0.2) return false;
+      SFX.init(); SFX.tackle();
       player.slideTimer = CFG.slideDurationSec;
       player.slideCooldown = CFG.slideCooldownSec;
       player.cooldown = Math.max(player.cooldown, 0.28);
@@ -2978,7 +3067,7 @@
       return won;
     }
 
-    function performShoot(player) {
+    function performShoot(player, charge = 0.5) {
       if (!player || mode !== MODES.PLAYING || player.cooldown > 0) return;
 
       if (!player.hasBall) {
@@ -2993,16 +3082,17 @@
       const shotDirection = facing.clone().lerp(goalDirection, player.isHuman ? 0.38 : 0.58).normalize();
       const sideSpin = (player.velocity.x * shotDirection.z - player.velocity.z * shotDirection.x) * 0.045;
 
-      const speed = player.role === "GK" ? 44 : 36 + player.stats.control * 2.2;
-      const lift = player.role === "GK" ? 12.2 : 7.2 + player.stats.control * 0.8;
+      const powerMultiplier = 0.5 + charge;
+      const speed = (player.role === "GK" ? 44 : 36 + player.stats.control * 2.2) * powerMultiplier;
+      const lift = (player.role === "GK" ? 12.2 : 5.2 + player.stats.control * 0.8 + charge * 8.0);
 
       releaseBall(player, shotDirection.multiplyScalar(speed), lift, sideSpin);
       player.cooldown = 0.42;
       player.thinkCooldown = 0.75;
-      gameState.cameraKick = Math.min(1, gameState.cameraKick + (player.isHuman ? 0.25 : 0.12));
+      gameState.cameraKick += player.isHuman ? 0.6 : 0.3;
     }
 
-    function performPass(player) {
+    function performPass(player, charge = 0.5) {
       if (!player || mode !== MODES.PLAYING || !player.hasBall || player.cooldown > 0) return;
 
       const target = findPassTarget(player);
@@ -3017,16 +3107,17 @@
         }
       }
 
+      const powerMultiplier = 0.6 + charge * 0.8;
       const side = new THREE.Vector3(-passDirection.z, 0, passDirection.x);
       const spin = side.dot(player.velocity) * 0.035;
-      const speed = player.role === "GK" ? 31 : 24 + player.stats.control * 2.4;
-      const lift = player.role === "GK" ? 5.2 : 2.2 + (target ? 0.45 : 0.2);
+      const speed = (player.role === "GK" ? 31 : 24 + player.stats.control * 2.4) * powerMultiplier;
+      const lift = (player.role === "GK" ? 5.2 : 1.2 + charge * 5.0 + (target ? 0.45 : 0.2));
       releaseBall(player, passDirection.multiplyScalar(speed), lift, spin);
 
       player.cooldown = 0.34;
       player.thinkCooldown = 0.62;
       if (player.isHuman) {
-        gameState.cameraKick = Math.min(1, gameState.cameraKick + 0.09);
+        gameState.cameraKick += 0.1 + charge * 0.2;
       }
     }
 
@@ -3230,8 +3321,11 @@
           player.velocity.lerp(targetVelocity, blend);
 
           const lookPoint = player.mesh.position.clone().add(player.velocity);
-          lookPoint.y = 1.2;
-          player.mesh.lookAt(lookPoint);
+          lookPoint.y = player.mesh.position.y;
+          const m = new THREE.Matrix4().lookAt(player.mesh.position, lookPoint, new THREE.Vector3(0, 1, 0));
+          const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m);
+          const turnSpd = dt * (6.0 + player.stats.agility * 4.0);
+          player.mesh.quaternion.slerp(targetQuat, clamp01(turnSpd));
         } else {
           const stopBlend = clamp01(dt * (16 + player.stats.accel * 0.55));
           player.velocity.lerp(new THREE.Vector3(), stopBlend);
@@ -3385,8 +3479,17 @@
 
     function registerGoal(team) {
       if (team !== "p1" && team !== "cpu") return;
+      SFX.init(); SFX.goal();
       gameState.scores[team] += 1;
       gameState.goalPause = CFG.goalPauseSec;
+      gameState.cameraKick = 3.5;
+      
+      const shell = document.getElementById("game-shell");
+      if (shell) {
+        shell.classList.remove("shake-intense");
+        void shell.offsetWidth;
+        shell.classList.add("shake-intense");
+      }
 
       ball.owner = null;
       ball.velocity.set(0, 0, 0);
@@ -3444,6 +3547,19 @@
         ball.velocity.z += lateralZ * ball.spinY * magnus;
       }
       ball.mesh.position.add(ball.velocity.clone().multiplyScalar(dt));
+      
+      if (horizSpeed > 0.01) {
+          const rollAxis = new THREE.Vector3(-ball.velocity.z, 0, ball.velocity.x).normalize();
+          const rollAngle = (horizSpeed * dt) / 0.58;
+          const rollQuat = new THREE.Quaternion().setFromAxisAngle(rollAxis, rollAngle);
+          
+          if (Math.abs(ball.spinY) > 0.01) {
+              const spinQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ball.spinY * dt * 4);
+              rollQuat.multiply(spinQuat);
+          }
+          
+          ball.mesh.quaternion.premultiply(rollQuat);
+      }
 
       if (ball.mesh.position.y < 0.72) {
         ball.mesh.position.y = 0.72;
@@ -3491,8 +3607,20 @@
     }
 
     function updateCamera(dt) {
-      if (!camera || !ball) return;
+      if (!camera) return;
       const profile = renderProfile || resolveRenderProfile();
+
+      if (mode === MODES.TITLE || mode === MODES.SQUAD) {
+        const time = performance.now() * 0.0001;
+        const radius = 32;
+        const cx = Math.sin(time) * radius;
+        const cz = Math.cos(time) * radius;
+        camera.position.lerp(new THREE.Vector3(cx, 16, cz), Math.min(1, dt * 1.5));
+        camera.lookAt(0, 2, 0);
+        return;
+      }
+
+      if (!ball) return;
       const focus = ball.owner ? ball.owner.mesh.position : ball.mesh.position;
       const pace = Math.min(1, Math.hypot(ball.velocity.x, ball.velocity.z) / 28);
       gameState.cameraKick = Math.max(0, gameState.cameraKick - dt * (profile.mobileLike ? 1.8 : 2.3));
@@ -3501,11 +3629,12 @@
       const desired = new THREE.Vector3(
         focus.x * 0.2 + sway + ball.velocity.x * 0.008,
         profile.cameraHeight - pace * 2.2 + kick * 0.8,
-        focus.z + profile.cameraDistance - pace * 2.8 - kick * 1.1
+        focus.z + profile.cameraDistance - pace * 2.8 - kick * 1.5
       );
-      camera.position.lerp(desired, Math.min(1, dt * (profile.mobileLike ? 3.1 : 3.6)));
-      camera.lookAt(focus.x * 0.18 + ball.velocity.x * 0.004, 1.1 + kick * 0.12, focus.z * 0.66 - pace * 0.66);
-      const targetRoll = (focus.x / (CFG.fieldW * 0.5)) * 0.004 + ball.velocity.x * 0.0002;
+      camera.position.lerp(desired, Math.min(1, dt * (profile.mobileLike ? 3.1 : 3.8)));
+      const kickSway = (Math.random() - 0.5) * kick * 0.15;
+      camera.lookAt(focus.x * 0.18 + ball.velocity.x * 0.004, 1.1 + kick * 0.12 + kickSway, focus.z * 0.66 - pace * 0.66);
+      const targetRoll = (focus.x / (CFG.fieldW * 0.5)) * 0.004 + ball.velocity.x * 0.0002 + kickSway * 0.5;
       camera.rotation.z = THREE.MathUtils.lerp(camera.rotation.z, targetRoll, Math.min(1, dt * 1.6));
     }
 
@@ -3543,6 +3672,14 @@
         inputState.teamPressQueued = false;
       }
       if (human) {
+        if (inputState.isChargingShoot) {
+            inputState.shootCharge = Math.min(1, inputState.shootCharge + dt * 1.5);
+            updatePowerBarUI(inputState.shootCharge);
+        } else if (inputState.isChargingPass) {
+            inputState.passCharge = Math.min(1, inputState.passCharge + dt * 2.5);
+            updatePowerBarUI(inputState.passCharge);
+        }
+
         if (inputState.skillQueued) {
           performSkillMove(human);
           inputState.skillQueued = false;
@@ -4333,12 +4470,27 @@
       const skillButton = $("b-skill");
       const stealButton = $("b-steal");
 
-      const doShoot = (event) => {
+      const bindHold = (id, onDown, onUp) => {
+        const node = $(id);
+        if (!node) return;
+        node.addEventListener("pointerdown", onDown);
+        node.addEventListener("pointerup", onUp);
+        node.addEventListener("pointercancel", onUp);
+        node.addEventListener("pointerleave", (e) => { 
+          if (e.pointerType === "mouse" && e.buttons !== 0) return;
+          onUp(e); 
+        });
+      };
+
+      const doShootDown = (event) => {
         if (event) event.preventDefault();
         const human = getHumanPlayer();
         if (!human) return;
         if (human.hasBall) {
-          performShoot(human);
+          if (!inputState.isChargingShoot) {
+            inputState.isChargingShoot = true;
+            inputState.shootCharge = 0;
+          }
           return;
         }
         if (ball && ball.owner && ball.owner.team !== human.team) {
@@ -4348,14 +4500,39 @@
         performSteal(human);
       };
 
-      const doPass = (event) => {
+      const doShootUp = (event) => {
+        if (event) event.preventDefault();
+        if (inputState.isChargingShoot) {
+          const human = getHumanPlayer();
+          if (human && human.hasBall) performShoot(human, inputState.shootCharge);
+          inputState.isChargingShoot = false;
+          inputState.shootCharge = 0;
+          updatePowerBarUI(0);
+        }
+      };
+
+      const doPassDown = (event) => {
         if (event) event.preventDefault();
         const human = getHumanPlayer();
         if (!human) return;
         if (human.hasBall) {
-          performPass(human);
+          if (!inputState.isChargingPass) {
+            inputState.isChargingPass = true;
+            inputState.passCharge = 0;
+          }
         } else {
           performSwitchPlayer("manual");
+        }
+      };
+
+      const doPassUp = (event) => {
+        if (event) event.preventDefault();
+        if (inputState.isChargingPass) {
+          const human = getHumanPlayer();
+          if (human && human.hasBall) performPass(human, inputState.passCharge);
+          inputState.isChargingPass = false;
+          inputState.passCharge = 0;
+          updatePowerBarUI(0);
         }
       };
 
@@ -4388,8 +4565,8 @@
         inputState.teamPressQueued = true;
       };
 
-      shootButton.addEventListener("pointerdown", doShoot);
-      passButton.addEventListener("pointerdown", doPass);
+      bindHold("b-shoot", doShootDown, doShootUp);
+      bindHold("b-pass", doPassDown, doPassUp);
       dashButton.addEventListener("pointerdown", doDash);
       skillButton.addEventListener("pointerdown", doSkill);
       stealButton.addEventListener("pointerdown", doSteal);
@@ -4447,6 +4624,7 @@
 
       zone.addEventListener("pointerdown", (event) => {
         event.preventDefault();
+        SFX.init();
         activePointer = event.pointerId;
         zone.setPointerCapture(activePointer);
         applyStick(event.clientX, event.clientY);
@@ -4473,6 +4651,7 @@
 
     function setupKeyboardAndMouse() {
       window.addEventListener("keydown", (event) => {
+        SFX.init();
         const key = event.key.toLowerCase();
 
         if (key === "w" || event.key === "ArrowUp") inputState.up = true;
@@ -4498,7 +4677,10 @@
             const human = getHumanPlayer();
             if (!human) return;
             if (human.hasBall) {
-              performShoot(human);
+              if (!inputState.isChargingShoot) {
+                  inputState.isChargingShoot = true;
+                  inputState.shootCharge = 0;
+              }
             } else {
               inputState.slideQueued = true;
             }
@@ -4511,7 +4693,10 @@
             const human = getHumanPlayer();
             if (!human) return;
             if (human.hasBall) {
-              performPass(human);
+              if (!inputState.isChargingPass) {
+                  inputState.isChargingPass = true;
+                  inputState.passCharge = 0;
+              }
             } else {
               inputState.switchQueued = true;
             }
@@ -4566,6 +4751,30 @@
         if (key === "d" || event.key === "ArrowRight") inputState.right = false;
         if (event.key === "Shift") inputState.sprint = false;
         if (key === "q") inputState.skill = false;
+
+        if (event.code === "Space") {
+            if (inputState.isChargingShoot) {
+                const human = getHumanPlayer();
+                if (human && human.hasBall) {
+                    performShoot(human, inputState.shootCharge);
+                }
+                inputState.isChargingShoot = false;
+                inputState.shootCharge = 0;
+                updatePowerBarUI(0);
+            }
+        }
+
+        if (key === "z") {
+            if (inputState.isChargingPass) {
+                const human = getHumanPlayer();
+                if (human && human.hasBall) {
+                    performPass(human, inputState.passCharge);
+                }
+                inputState.isChargingPass = false;
+                inputState.passCharge = 0;
+                updatePowerBarUI(0);
+            }
+        }
       });
 
       window.addEventListener("mousedown", (event) => {
@@ -4680,6 +4889,36 @@
       return JSON.stringify(payload);
     }
 
+    function setupRipples() {
+      const createRipple = (event) => {
+        const button = event.currentTarget;
+        const ripple = document.createElement("span");
+        const rect = button.getBoundingClientRect();
+        
+        let clientX = event.clientX;
+        let clientY = event.clientY;
+        if (event.type.startsWith("touch") && event.touches && event.touches.length > 0) {
+          clientX = event.touches[0].clientX;
+          clientY = event.touches[0].clientY;
+        }
+        
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        
+        ripple.style.left = x + "px";
+        ripple.style.top = y + "px";
+        ripple.className = "ripple-effect";
+        
+        button.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      };
+
+      document.querySelectorAll("button").forEach(btn => {
+        btn.classList.add("ripple-target");
+        btn.addEventListener("pointerdown", createRipple);
+      });
+    }
+
     function setupTestingHooks() {
       window.render_game_to_text = renderGameToText;
 
@@ -4717,6 +4956,7 @@
       setupUiHandlers();
       setupJoystick();
       setupKeyboardAndMouse();
+      setupRipples();
       setupTestingHooks();
       renderSquadPreview();
       updateHud();
