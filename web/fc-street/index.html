@@ -5,6 +5,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>FC Street: Broadcast 4v4</title>
 
   <script src="../vendor/three.r128.min.js"></script>
@@ -803,8 +805,16 @@
 
     #joy-zone {
       position: absolute;
-      left: 16px;
-      bottom: 16px;
+      left: 0;
+      top: 0;
+      width: 50vw;
+      height: 100vh;
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    #joy-base {
+      position: absolute;
       width: 144px;
       height: 144px;
       border-radius: 999px;
@@ -815,14 +825,14 @@
       box-shadow:
         inset 0 0 32px rgba(0, 0, 0, 0.54),
         0 10px 22px rgba(0, 0, 0, 0.42);
-      pointer-events: auto;
-      touch-action: none;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.2s ease-out;
     }
 
     #joy-stick {
       position: absolute;
-      left: 50%;
-      top: 50%;
       width: 58px;
       height: 58px;
       border-radius: 999px;
@@ -831,6 +841,8 @@
       transform: translate(-50%, -50%);
       box-shadow: 0 0 14px rgba(205, 227, 246, 0.2);
       pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease-out;
     }
 
     .btn-cluster {
@@ -1107,6 +1119,11 @@
       }
 
       #joy-zone {
+        width: 50vw;
+        height: 100vh;
+      }
+
+      #joy-base {
         width: 118px;
         height: 118px;
       }
@@ -1220,6 +1237,7 @@
 
     <div id="controls-ui">
       <div id="joy-zone" class="interactive">
+        <div id="joy-base"></div>
         <div id="joy-stick"></div>
       </div>
       <div id="radar-wrap">
@@ -1290,7 +1308,7 @@
       gravity: 26,
       ballDragPerSec: 0.45,
       pickupRadius: 2.1,
-      playerRadius: 0.78,
+      playerRadius: 1.15,
       collisionResolve: 0.9,
       tackleRange: 2.2,
       stealConeDot: -0.18,
@@ -2589,6 +2607,7 @@ const SFX = {
           radius: CFG.playerRadius,
           recentTouch: 0,
           sprinting: false,
+          stamina: 1.0,
         };
       });
       updateHumanIndicators();
@@ -2833,6 +2852,23 @@ const SFX = {
       const side = new THREE.Vector3(-facing.z, 0, facing.x);
       const control = clamp01(player.stats.control);
       const rawTouch = Math.max(0, (incomingSpeed - 6) / 30) * (1 - control) * CFG.touchNoise;
+
+      if (rawTouch > 0.45) {
+        const bouncePower = rawTouch * 18;
+        const pushDir = facing.clone().add(side.clone().multiplyScalar((Math.random() - 0.5) * 1.5)).normalize();
+        player.controlChaos = 1;
+        player.cooldown = Math.max(player.cooldown, 0.35);
+        if (player.team === "p1") gameState.teamPressTimer = 0;
+        
+        // The ball deflects off the player's foot
+        ball.owner = null;
+        ball.velocity.set(pushDir.x * bouncePower, 1.2 + rawTouch * 2, pushDir.z * bouncePower);
+        ball.mesh.position.set(player.mesh.position.x + facing.x * 0.5, 0.8, player.mesh.position.z + facing.z * 0.5);
+        ball.spinY = (Math.random() - 0.5) * 2;
+        ball.curl = ball.spinY;
+        return;
+      }
+
       const sideJitter = (Math.random() * 2 - 1) * rawTouch * 0.75;
       const frontJitter = rawTouch * 0.44;
       const touchLen = (player.role === "GK" ? 0.92 : 1.02) + frontJitter;
@@ -2897,18 +2933,23 @@ const SFX = {
     function performDash(player) {
       if (!player || mode !== MODES.PLAYING || player.dashCooldown > 0 || player.cooldown > 0.08) return;
       const facing = getFacingVector(player);
+      
+      if (player.hasBall && ball && ball.owner === player) {
+        ball.owner = null;
+        player.hasBall = false;
+        const kickPower = 38 + player.stats.pace * 0.4;
+        ball.velocity.set(facing.x * kickPower, 1.2, facing.z * kickPower);
+        ball.spinY += (Math.random() * 2 - 1) * 0.8;
+      }
+
       const burst = player.stats.pace * 0.88 + 8;
       player.velocity.x += facing.x * burst;
       player.velocity.z += facing.z * burst;
       player.dashTimer = CFG.dashDurationSec;
       player.dashCooldown = CFG.dashCooldownSec;
       player.cooldown = Math.max(player.cooldown, 0.14);
-      player.controlChaos = Math.min(1, player.controlChaos + (player.hasBall ? 0.16 : 0.04));
+      player.controlChaos = Math.min(1, player.controlChaos + 0.04);
       player.thinkCooldown = Math.max(player.thinkCooldown, 0.2);
-
-      if (player.hasBall && ball && ball.owner === player) {
-        ball.spinY += (Math.random() * 2 - 1) * 0.8;
-      }
 
       if (!player.hasBall && ball && !ball.owner) {
         const looseDistance = horizontalDistance(player.mesh.position, ball.mesh.position);
@@ -2923,22 +2964,16 @@ const SFX = {
       }
     }
 
-    function performSkillMove(player) {
+    function performSkillMove(player, type = "shimmy") {
       if (!player || mode !== MODES.PLAYING || !player.hasBall || player.skillCooldown > 0) return;
-      const facing = getFacingVector(player);
-      const side = new THREE.Vector3(-facing.z, 0, facing.x);
-      const sideSign = inputState.left ? -1 : inputState.right ? 1 : (Math.random() < 0.5 ? -1 : 1);
-      const burst = (player.stats.agility * 7.2 + 2.2) * sideSign;
-      player.velocity.x += side.x * burst;
-      player.velocity.z += side.z * burst;
+      player.skillType = type;
       player.skillTimer = CFG.skillDurationSec;
       player.skillCooldown = CFG.skillCooldownSec;
       player.cooldown = Math.max(player.cooldown, 0.12);
       player.controlChaos = Math.max(0, player.controlChaos - 0.2);
       if (ball) {
-        ball.spinY += sideSign * (0.85 + player.stats.control * 0.7);
+        ball.spinY += (Math.random() < 0.5 ? -1 : 1) * (0.85 + player.stats.control * 0.7);
       }
-
       if (player.isHuman) {
         gameState.cameraKick = Math.min(1, gameState.cameraKick + 0.05);
       }
@@ -3067,7 +3102,7 @@ const SFX = {
       return won;
     }
 
-    function performShoot(player, charge = 0.5) {
+    function performShoot(player, charge = 0.5, type = "standard") {
       if (!player || mode !== MODES.PLAYING || player.cooldown > 0) return;
 
       if (!player.hasBall) {
@@ -3080,11 +3115,23 @@ const SFX = {
       const facing = getFacingVector(player);
       const goalDirection = new THREE.Vector3(-player.mesh.position.x * 0.08, 0, player.team === "p1" ? -1 : 1).normalize();
       const shotDirection = facing.clone().lerp(goalDirection, player.isHuman ? 0.38 : 0.58).normalize();
-      const sideSpin = (player.velocity.x * shotDirection.z - player.velocity.z * shotDirection.x) * 0.045;
+      let sideSpin = (player.velocity.x * shotDirection.z - player.velocity.z * shotDirection.x) * 0.045;
 
-      const powerMultiplier = 0.5 + charge;
-      const speed = (player.role === "GK" ? 44 : 36 + player.stats.control * 2.2) * powerMultiplier;
-      const lift = (player.role === "GK" ? 12.2 : 5.2 + player.stats.control * 0.8 + charge * 8.0);
+      let powerMultiplier = 0.5 + charge;
+      let speed = (player.role === "GK" ? 44 : 36 + player.stats.control * 2.2) * powerMultiplier;
+      let lift = (player.role === "GK" ? 12.2 : 5.2 + player.stats.control * 0.8 + charge * 8.0);
+
+      if (type === "finesse") {
+        speed *= 0.72;
+        lift *= 0.6;
+        sideSpin += (shotDirection.x < 0 ? 0.8 : -0.8); // Add huge curl
+      } else if (type === "power") {
+        speed *= 1.45;
+        lift *= 0.85;
+      } else if (type === "chip") {
+        speed *= 0.55;
+        lift *= 3.8;
+      }
 
       releaseBall(player, shotDirection.multiplyScalar(speed), lift, sideSpin);
       player.cooldown = 0.42;
@@ -3092,7 +3139,7 @@ const SFX = {
       gameState.cameraKick += player.isHuman ? 0.6 : 0.3;
     }
 
-    function performPass(player, charge = 0.5) {
+    function performPass(player, charge = 0.5, type = "standard") {
       if (!player || mode !== MODES.PLAYING || !player.hasBall || player.cooldown > 0) return;
 
       const target = findPassTarget(player);
@@ -3110,8 +3157,17 @@ const SFX = {
       const powerMultiplier = 0.6 + charge * 0.8;
       const side = new THREE.Vector3(-passDirection.z, 0, passDirection.x);
       const spin = side.dot(player.velocity) * 0.035;
-      const speed = (player.role === "GK" ? 31 : 24 + player.stats.control * 2.4) * powerMultiplier;
-      const lift = (player.role === "GK" ? 5.2 : 1.2 + charge * 5.0 + (target ? 0.45 : 0.2));
+      let speed = (player.role === "GK" ? 31 : 24 + player.stats.control * 2.4) * powerMultiplier;
+      let lift = (player.role === "GK" ? 5.2 : 1.2 + charge * 5.0 + (target ? 0.45 : 0.2));
+
+      if (type === "driven") {
+        speed *= 1.55;
+        lift = 0.1;
+      } else if (type === "lob") {
+        speed *= 1.15;
+        lift *= 3.1;
+      }
+
       releaseBall(player, passDirection.multiplyScalar(speed), lift, spin);
 
       player.cooldown = 0.34;
@@ -3227,9 +3283,20 @@ const SFX = {
       const fieldHalfL = CFG.fieldL / 2;
 
       if (player.role === "GK") {
-        const targetX = Math.max(-CFG.goalWidth / 2 + 0.9, Math.min(CFG.goalWidth / 2 - 0.9, ball.mesh.position.x * 0.72));
         const homeGoalZ = player.team === "p1" ? fieldHalfL - 1.6 : -fieldHalfL + 1.6;
-        desired.set(targetX - player.mesh.position.x, 0, homeGoalZ - player.mesh.position.z);
+        let targetX = Math.max(-CFG.goalWidth / 2 + 0.9, Math.min(CFG.goalWidth / 2 - 0.9, ball.mesh.position.x * 0.72));
+        let targetZ = homeGoalZ;
+
+        if (Math.abs(ball.velocity.z) > 6) {
+          const timeToReach = Math.abs((homeGoalZ - ball.mesh.position.z) / ball.velocity.z);
+          if (timeToReach > 0 && timeToReach < 1.25) {
+            const interceptX = ball.mesh.position.x + (ball.velocity.x * timeToReach);
+            targetX = Math.max(-CFG.goalWidth / 2 + 0.5, Math.min(CFG.goalWidth / 2 - 0.5, interceptX));
+            if (timeToReach < 0.6) targetZ = homeGoalZ - (Math.sign(homeGoalZ) * 2.5);
+          }
+        }
+
+        desired.set(targetX - player.mesh.position.x, 0, targetZ - player.mesh.position.z);
         return desired;
       }
 
@@ -3288,8 +3355,23 @@ const SFX = {
           if (inputState.sprint) {
             targetSpeed = Math.max(targetSpeed, CFG.sprintSpeed);
             player.sprinting = true;
-            if (!player.hasBall && player.stealCooldown <= 0 && player.cooldown <= 0.12) {
-              performSteal(player);
+            if (!player.hasBall) {
+              const carrier = players.find(p => p.hasBall && p.team !== player.team);
+              if (carrier) {
+                const toGoal = new THREE.Vector3(-carrier.mesh.position.x * 0.1, 0, carrier.team === "p1" ? -1 : 1).normalize();
+                const containPoint = carrier.mesh.position.clone().add(toGoal.multiplyScalar(CFG.tackleRange * 1.5));
+                if (horizontalDistance(player.mesh.position, containPoint) > 0.8) {
+                   desired.set(containPoint.x - player.mesh.position.x, 0, containPoint.z - player.mesh.position.z).normalize();
+                   targetSpeed = Math.min(targetSpeed, carrier.stats.pace * 1.2 + 2);
+                } else {
+                   const toCarrier = carrier.mesh.position.clone().sub(player.mesh.position).normalize();
+                   desired.set(toCarrier.x, 0, toCarrier.z);
+                   targetSpeed = carrier.stats.pace * 0.9;
+                }
+                player.sprinting = false; 
+              } else if (player.stealCooldown <= 0 && player.cooldown <= 0.12) {
+                performSteal(player);
+              }
             }
           }
           if (inputState.skill && player.hasBall) {
@@ -3311,7 +3393,15 @@ const SFX = {
 
         if (player.dashTimer > 0) {
           targetSpeed += 8.6 + player.stats.pace * 0.4;
+          player.stamina -= dt * 0.15;
+        } else if (player.sprinting && targetSpeed > 10) {
+          player.stamina -= dt * 0.05;
+        } else {
+          player.stamina += dt * 0.03;
         }
+        player.stamina = Math.max(0, Math.min(1, player.stamina));
+        
+        targetSpeed *= (0.6 + 0.4 * player.stamina);
 
         if (desired.lengthSq() > 0.0008) {
           desired.normalize();
@@ -3342,9 +3432,31 @@ const SFX = {
         if (player.skillTimer > 0 && player.hasBall) {
           const facing = getFacingVector(player);
           const lateral = new THREE.Vector3(-facing.z, 0, facing.x);
-          const shimmy = Math.sin(player.animPhase * 2.4) * (0.34 + player.stats.agility * 0.55);
-          player.velocity.x += lateral.x * shimmy;
-          player.velocity.z += lateral.z * shimmy;
+          
+          if (player.skillType === "roulette") {
+            const progress = 1 - (player.skillTimer / CFG.skillDurationSec);
+            const spinQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), progress * Math.PI * 2);
+            player.mesh.quaternion.multiply(spinQuat);
+            targetSpeed *= 0.6;
+          } else if (player.skillType === "stepover") {
+            const shimmy = Math.sin(player.animPhase * 8.0) * (0.6 + player.stats.agility * 0.5);
+            player.velocity.x += lateral.x * shimmy;
+            player.velocity.z += lateral.z * shimmy;
+            targetSpeed *= 1.35;
+          } else if (player.skillType === "heel-to-heel") {
+            const progress = 1 - (player.skillTimer / CFG.skillDurationSec);
+            if (progress < 0.4) {
+              targetSpeed *= 0.2; 
+            } else {
+              targetSpeed *= 1.8; 
+              player.velocity.x += facing.x * 2.5;
+              player.velocity.z += facing.z * 2.5;
+            }
+          } else {
+            const shimmy = Math.sin(player.animPhase * 2.4) * (0.34 + player.stats.agility * 0.55);
+            player.velocity.x += lateral.x * shimmy;
+            player.velocity.z += lateral.z * shimmy;
+          }
         }
 
         const planarSpeed = Math.hypot(player.velocity.x, player.velocity.z);
@@ -3510,7 +3622,12 @@ const SFX = {
         const facing = getFacingVector(owner);
         const side = new THREE.Vector3(-facing.z, 0, facing.x);
         const ownerSpeed = Math.hypot(owner.velocity.x, owner.velocity.z);
-        const spacing = (owner.role === "GK" ? 0.92 : 1.06) + ownerSpeed * 0.02 + owner.controlChaos * 0.55 + (owner.dashTimer > 0 ? 0.44 : 0);
+        const spacing = (owner.role === "GK" ? 0.92 : 1.06) 
+          + ownerSpeed * 0.02 
+          + owner.controlChaos * 0.55 
+          + (owner.dashTimer > 0 ? 0.44 : 0)
+          + (ownerSpeed / 20) * 1.6;
+
         const shimmy = owner.skillTimer > 0 ? Math.sin(owner.animPhase * 2.3) * 0.32 : 0;
         const target = new THREE.Vector3(
           owner.mesh.position.x + facing.x * spacing + side.x * shimmy,
@@ -3527,7 +3644,7 @@ const SFX = {
         ball.spinY *= Math.max(0, 1 - dt * 2.1);
 
         const leash = horizontalDistance(ball.mesh.position, owner.mesh.position);
-        if (leash > 2.34 + owner.stats.control * 0.32) {
+        if (leash > 2.34 + owner.stats.control * 0.32 + (ownerSpeed / 20) * 1.6) {
           const poke = facing.clone().multiplyScalar(8 + ownerSpeed * 0.32);
           releaseBall(owner, poke, 0.9, (Math.random() * 2 - 1) * 1.1);
         }
@@ -3681,7 +3798,7 @@ const SFX = {
         }
 
         if (inputState.skillQueued) {
-          performSkillMove(human);
+          performSkillMove(human, inputState.skillType);
           inputState.skillQueued = false;
         }
         if (inputState.dashQueued) {
@@ -4166,11 +4283,47 @@ const SFX = {
           labelCtx.fill();
         }
 
+        const stamW = boxW;
+        const stamH = 3;
+        const stamX = boxX;
+        const stamY = boxY + boxH + 2;
+        labelCtx.fillStyle = "rgba(0,0,0,0.6)";
+        labelCtx.fillRect(stamX, stamY, stamW, stamH);
+        
+        const stamColor = player.stamina > 0.5 ? "#55efc4" : (player.stamina > 0.25 ? "#fdcb6e" : "#ff7675");
+        labelCtx.fillStyle = stamColor;
+        labelCtx.fillRect(stamX, stamY, stamW * player.stamina, stamH);
+
         labelCtx.fillStyle = "#eef8ff";
         labelCtx.textAlign = "center";
         labelCtx.textBaseline = "middle";
         labelCtx.fillText(text, point.x, boxY + boxH * 0.53);
       });
+    }
+
+    let lastHasBallState = null;
+    function updateControlLabels() {
+      if (mode !== MODES.PLAYING) return;
+      const human = getHumanPlayer();
+      const hasBall = human ? human.hasBall : false;
+      if (hasBall === lastHasBallState) return;
+      lastHasBallState = hasBall;
+
+      if (hasBall) {
+        $("b-shoot").textContent = "SHOOT";
+        $("b-pass").textContent = "PASS";
+        $("b-skill").textContent = "THROUGH";
+        $("b-sprint").textContent = "SPRINT";
+        $("b-dash").textContent = "SKILL";
+        $("b-steal").textContent = "CALL";
+      } else {
+        $("b-shoot").textContent = "CLEAR";
+        $("b-pass").textContent = "SWITCH";
+        $("b-skill").textContent = "TACKLE";
+        $("b-sprint").textContent = "JOCKEY";
+        $("b-dash").textContent = "2nd DEF";
+        $("b-steal").textContent = "PRESS";
+      }
     }
 
     function renderFrame() {
@@ -4183,6 +4336,7 @@ const SFX = {
       }
       renderRadar();
       renderPlayerLabels();
+      updateControlLabels();
     }
 
     function frameLoop(now) {
@@ -4565,8 +4719,27 @@ const SFX = {
         inputState.teamPressQueued = true;
       };
 
-      bindHold("b-shoot", doShootDown, doShootUp);
-      bindHold("b-pass", doPassDown, doPassUp);
+      bindSwipeable(
+        "b-shoot", 
+        "isShootButtonDown", 
+        doShootDown, 
+        () => triggerShoot("chip"),       // up
+        () => triggerShoot("finesse"),    // down
+        () => triggerShoot("standard"),   // left (none)
+        () => triggerShoot("power"),      // right
+        () => triggerShoot("standard")    // default
+      );
+      
+      bindSwipeable(
+        "b-pass", 
+        "isPassButtonDown", 
+        doPassDown, 
+        () => triggerPass("lob"),         // up
+        () => triggerPass("standard"),    // down 
+        () => triggerPass("standard"),    // left
+        () => triggerPass("driven"),      // right
+        () => triggerPass("standard")     // default
+      );
       dashButton.addEventListener("pointerdown", doDash);
       skillButton.addEventListener("pointerdown", doSkill);
       stealButton.addEventListener("pointerdown", doSteal);
@@ -4593,25 +4766,45 @@ const SFX = {
 
     function setupJoystick() {
       const zone = $("joy-zone");
+      const base = $("joy-base");
       const stick = $("joy-stick");
       const limit = 44;
       let activePointer = null;
+      let originX = 0;
+      let originY = 0;
+
+      function spawnStick(clientX, clientY) {
+        originX = clientX;
+        originY = clientY;
+        base.style.left = originX + "px";
+        base.style.top = originY + "px";
+        stick.style.left = originX + "px";
+        stick.style.top = originY + "px";
+        base.style.opacity = "1";
+        stick.style.opacity = "1";
+        inputState.joyX = 0;
+        inputState.joyZ = 0;
+        stick.style.transform = "translate(-50%, -50%) scale(1.1)";
+      }
 
       function applyStick(clientX, clientY) {
-        const rect = zone.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-
-        let dx = clientX - centerX;
-        let dy = clientY - centerY;
+        let dx = clientX - originX;
+        let dy = clientY - originY;
         const distance = Math.hypot(dx, dy);
+
         if (distance > limit) {
-          const scale = limit / distance;
-          dx *= scale;
-          dy *= scale;
+          const over = distance - limit;
+          const angle = Math.atan2(dy, dx);
+          originX += Math.cos(angle) * over;
+          originY += Math.sin(angle) * over;
+          base.style.left = originX + "px";
+          base.style.top = originY + "px";
+          
+          dx = Math.cos(angle) * limit;
+          dy = Math.sin(angle) * limit;
         }
 
-        stick.style.transform = "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px))";
+        stick.style.transform = "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px)) scale(1.1)";
         inputState.joyX = dx / limit;
         inputState.joyZ = dy / limit;
       }
@@ -4619,15 +4812,18 @@ const SFX = {
       function resetStick() {
         inputState.joyX = 0;
         inputState.joyZ = 0;
-        stick.style.transform = "translate(-50%, -50%)";
+        base.style.opacity = "0";
+        stick.style.opacity = "0";
+        stick.style.transform = "translate(-50%, -50%) scale(1)";
       }
 
       zone.addEventListener("pointerdown", (event) => {
         event.preventDefault();
+        if (activePointer !== null) return;
         SFX.init();
         activePointer = event.pointerId;
         zone.setPointerCapture(activePointer);
-        applyStick(event.clientX, event.clientY);
+        spawnStick(event.clientX, event.clientY);
       });
 
       zone.addEventListener("pointermove", (event) => {

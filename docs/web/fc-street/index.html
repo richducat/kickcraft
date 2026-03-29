@@ -5,6 +5,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>FC Street: Broadcast 4v4</title>
 
   <script src="../vendor/three.r128.min.js"></script>
@@ -140,6 +142,21 @@
       opacity: var(--fx-overlay-strength);
     }
 
+    body[data-mode="title"] #game-container,
+    body[data-mode="squad"] #game-container {
+      filter: blur(8px) brightness(0.65);
+      transform: scale(1.05);
+      transition: filter 1.2s ease, transform 1.2s ease;
+    }
+
+    body[data-mode="playing"] #game-container,
+    body[data-mode="fulltime"] #game-container,
+    body[data-mode="paused"] #game-container {
+      filter: blur(0px) brightness(1.0);
+      transform: scale(1.0);
+      transition: filter 0.8s ease, transform 0.8s ease;
+    }
+
     #broadcast-fx::after {
       content: "";
       position: absolute;
@@ -182,6 +199,79 @@
         0 24px 80px rgba(0, 0, 0, 0.8),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
+    
+    .player-card {
+      width: 130px;
+      height: 190px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(0,0,0,0.4));
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease;
+      cursor: pointer;
+      opacity: 0;
+      animation: popIn 0.4s ease forwards;
+    }
+    .player-card:hover {
+      transform: translateY(-8px) scale(1.05);
+      box-shadow: 0 16px 48px rgba(188,230,0,0.3);
+      border-color: rgba(188,230,0,0.8);
+    }
+    .card-rating {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--cta-a);
+      position: absolute;
+      top: 6px;
+      left: 10px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+    }
+    .card-pos {
+      font-size: 13px;
+      color: rgba(255,255,255,0.8);
+      position: absolute;
+      top: 32px;
+      left: 10px;
+      font-weight: 600;
+    }
+    .card-img-placeholder {
+      width: 80px;
+      height: 80px;
+      margin-top: 18px;
+      background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%);
+      border-radius: 50%;
+      mask-image: radial-gradient(circle, white, black);
+      -webkit-mask-image: -webkit-radial-gradient(circle, white, black);
+    }
+    .card-name {
+      margin-top: auto;
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: center;
+      width: 100%;
+    }
+    .card-stats {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.6);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 6px;
+    }
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
 
     .action-btn {
       border: 0;
@@ -198,6 +288,28 @@
         0 8px 16px rgba(188, 230, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.6);
       transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+    }
+    
+    .ripple-target {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .ripple-effect {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.4);
+      transform: scale(0);
+      animation: rippleAnim 0.6s linear forwards;
+      pointer-events: none;
+      width: 100px;
+      height: 100px;
+      margin-top: -50px;
+      margin-left: -50px;
+    }
+    
+    @keyframes rippleAnim {
+      to { transform: scale(4); opacity: 0; }
     }
 
     .action-btn:hover {
@@ -501,154 +613,68 @@
 
     #scoreboard {
       position: absolute;
-      left: 14px;
-      top: 14px;
-      min-width: min(88vw, 292px);
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 8px;
-      border-radius: 7px;
+      align-items: stretch;
+      height: 44px;
+      border-radius: 22px;
+      background: rgba(10, 15, 25, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      z-index: 50;
+      color: #fff;
+      font-family: "Teko", "Avenir Next Condensed", sans-serif;
       overflow: hidden;
-      border: 1px solid rgba(188, 212, 237, 0.28);
-      background: linear-gradient(154deg, rgba(12, 25, 47, 0.92), rgba(8, 17, 36, 0.95));
-      box-shadow:
-        0 8px 18px rgba(0, 0, 0, 0.32),
-        inset 0 1px 0 rgba(255, 255, 255, 0.14);
       pointer-events: auto;
     }
 
-    #scoreboard::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      height: 1px;
-      background: rgba(255, 255, 255, 0.2);
-      pointer-events: none;
-    }
-
-    .score-box {
-      min-width: 66px;
-      padding: 4px 6px;
-      border-radius: 6px;
+    .sb-team {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 5px;
-      position: relative;
+      padding: 0 16px;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 1px;
       background: rgba(255, 255, 255, 0.05);
     }
 
-    #hud-rank {
-      min-width: 38px;
-      height: 35px;
-      border-radius: 6px;
-      border: 1px solid rgba(210, 232, 250, 0.3);
-      background: linear-gradient(160deg, rgba(28, 54, 87, 0.8), rgba(14, 31, 56, 0.9));
-      color: #d5ebff;
-      display: grid;
-      place-items: center;
-      font-family: "Haettenschweiler", "Impact", "Arial Black", sans-serif;
-      font-size: 0.9rem;
-      letter-spacing: 0.04em;
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+    .sb-city {
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 2px solid var(--city);
     }
 
-    .score-box.city::after,
-    .score-box.away::after {
-      content: "";
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      bottom: 0;
-      height: 2px;
-      border-radius: 999px;
+    .sb-away {
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 2px solid var(--away);
     }
 
-    .score-box.city::after {
-      background: linear-gradient(90deg, rgba(56, 198, 255, 0.2), var(--city), rgba(56, 198, 255, 0.2));
+    .sb-tag {
+      opacity: 0.8;
+      font-size: 16px;
+      margin: 0 6px;
     }
 
-    .score-box.away::after {
-      background: linear-gradient(90deg, rgba(255, 47, 121, 0.2), var(--away), rgba(255, 47, 121, 0.2));
+    .sb-score {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--cta-a);
+      width: 20px;
+      text-align: center;
     }
 
-    .team-top {
+    .sb-timer {
       display: flex;
       align-items: center;
-      gap: 5px;
-    }
-
-    .team-crest {
-      width: 16px;
-      height: 16px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.32);
-      box-shadow: 0 0 0 1px rgba(2, 10, 19, 0.42);
-      background-color: rgba(255, 255, 255, 0.08);
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: cover;
-    }
-
-    .team-crest.city {
-      background-image: url("assets/mci-crest.svg");
-    }
-
-    .team-crest.away {
-      background-image: url("assets/rma-crest.svg");
-    }
-
-    .team-tag {
-      font-size: 0.56rem;
-      color: #d8eafd;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      font-weight: 800;
-      font-family: "Haettenschweiler", "Impact", "Arial Black", sans-serif;
-    }
-
-    .team-sub {
-      display: none;
-    }
-
-    .score-value {
-      margin-top: 0;
-      font-family: "Haettenschweiler", "Impact", "Arial Black", sans-serif;
-      font-size: 1.56rem;
-      line-height: 1;
-      letter-spacing: 0.02em;
-      color: #ffffff;
-    }
-
-    #timer-box {
-      min-width: 84px;
-      display: grid;
-      place-items: center;
-      align-content: center;
-      padding: 3px 8px;
-      background: rgba(2, 9, 23, 0.72);
-      border-left: 1px solid rgba(255, 255, 255, 0.1);
-      border-right: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 6px;
-    }
-
-    .timer-label {
-      font-size: 0.43rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #b8cfe7;
-      margin-bottom: 0;
-    }
-
-    #game-timer {
-      font-family: "Haettenschweiler", "Impact", "Arial Black", sans-serif;
-      font-size: 1.54rem;
-      letter-spacing: 0.02em;
-      line-height: 1;
-      color: #f3f9ff;
+      justify-content: center;
+      padding: 0 16px;
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: 1px;
+      min-width: 80px;
     }
 
     #pause-btn {
@@ -779,8 +805,16 @@
 
     #joy-zone {
       position: absolute;
-      left: 16px;
-      bottom: 16px;
+      left: 0;
+      top: 0;
+      width: 50vw;
+      height: 100vh;
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    #joy-base {
+      position: absolute;
       width: 144px;
       height: 144px;
       border-radius: 999px;
@@ -791,14 +825,14 @@
       box-shadow:
         inset 0 0 32px rgba(0, 0, 0, 0.54),
         0 10px 22px rgba(0, 0, 0, 0.42);
-      pointer-events: auto;
-      touch-action: none;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.2s ease-out;
     }
 
     #joy-stick {
       position: absolute;
-      left: 50%;
-      top: 50%;
       width: 58px;
       height: 58px;
       border-radius: 999px;
@@ -807,6 +841,8 @@
       transform: translate(-50%, -50%);
       box-shadow: 0 0 14px rgba(205, 227, 246, 0.2);
       pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease-out;
     }
 
     .btn-cluster {
@@ -1083,6 +1119,11 @@
       }
 
       #joy-zone {
+        width: 50vw;
+        height: 100vh;
+      }
+
+      #joy-base {
         width: 118px;
         height: 118px;
       }
@@ -1118,35 +1159,44 @@
       #broadcast-fx {
         opacity: calc(var(--fx-overlay-strength) * 0.8);
       }
+    }    @keyframes big-shake {
+      0% { transform: translate(0, 0) rotate(0); }
+      10% { transform: translate(-6px, 4px) rotate(-1.5deg); }
+      20% { transform: translate(6px, -4px) rotate(1.5deg); }
+      30% { transform: translate(-4px, 3px) rotate(-1deg); }
+      40% { transform: translate(4px, -3px) rotate(1deg); }
+      50% { transform: translate(-2px, 2px) rotate(-0.5deg); }
+      60% { transform: translate(2px, -2px) rotate(0.5deg); }
+      100% { transform: translate(0, 0) rotate(0); }
+    }
+    .shake-intense {
+      animation: big-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
     }
   </style>
 </head>
 
 <body>
   <div id="game-shell">
+    
+    <!-- Power Bar -->
+    <div id="power-bar-container" class="absolute bottom-[25%] left-1/2 -translate-x-1/2 w-48 h-3 bg-white/20 rounded-full border border-white/40 overflow-hidden opacity-0 transition-opacity duration-200 pointer-events-none z-50">
+      <div id="power-bar-fill" class="h-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 w-0"></div>
+    </div>
     <div id="game-container"></div>
     <div id="broadcast-fx" aria-hidden="true"></div>
 
     <div id="ui-layer">
       <div id="scoreboard" class="interactive">
-        <div id="hud-rank">643</div>
-        <div class="score-box city">
-          <div class="team-top">
-            <span class="team-crest city" aria-hidden="true"></span>
-            <div class="team-tag">MCI</div>
-          </div>
-          <div id="s-p1" class="score-value">0</div>
+        <div class="sb-team sb-city">
+          <span class="sb-tag">MCI</span>
+          <span id="s-p1" class="sb-score">0</span>
         </div>
-        <div id="timer-box">
-          <span class="timer-label">1ST</span>
+        <div id="timer-box" class="sb-timer">
           <span id="game-timer">03:00</span>
         </div>
-        <div class="score-box away">
-          <div class="team-top">
-            <span class="team-crest away" aria-hidden="true"></span>
-            <div class="team-tag">RMA</div>
-          </div>
-          <div id="s-cpu" class="score-value">0</div>
+        <div class="sb-team sb-away">
+          <span id="s-cpu" class="sb-score">0</span>
+          <span class="sb-tag">RMA</span>
         </div>
       </div>
 
@@ -1187,6 +1237,7 @@
 
     <div id="controls-ui">
       <div id="joy-zone" class="interactive">
+        <div id="joy-base"></div>
         <div id="joy-stick"></div>
       </div>
       <div id="radar-wrap">
@@ -1251,13 +1302,13 @@
       goalHeight: 3.6,
       matchDurationSec: 180,
       goalPauseSec: 1.05,
-      playerSpeed: 13.8,
-      sprintSpeed: 20.0,
-      cpuSpeed: 13.5,
-      gravity: 24,
-      ballDragPerSec: 0.62,
+      playerSpeed: 15.0,
+      sprintSpeed: 23.5,
+      cpuSpeed: 14.5,
+      gravity: 26,
+      ballDragPerSec: 0.45,
       pickupRadius: 2.1,
-      playerRadius: 0.78,
+      playerRadius: 1.15,
       collisionResolve: 0.9,
       tackleRange: 2.2,
       stealConeDot: -0.18,
@@ -1276,6 +1327,35 @@
       touchNoise: 1.15,
       looseBallGroundFriction: 1.4,
     };
+
+// --- AUDIO (Synth) ---
+const SFX = {
+    ctx: null,
+    init() {
+        if(this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    },
+    play(freq, type, dur, vol) {
+        if(!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.1, this.ctx.currentTime + dur);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + dur);
+    },
+    kick() { this.play(150, 'sine', 0.1, 0.3); },
+    goal() { 
+        this.play(200, 'square', 0.8, 0.2); 
+        setTimeout(() => this.play(300, 'square', 0.8, 0.2), 100);
+        setTimeout(() => this.play(400, 'square', 1.0, 0.2), 200);
+    },
+    tackle() { this.play(80, 'sawtooth', 0.15, 0.15); }
+};
 
     const MODES = Object.freeze({
       TITLE: "title",
@@ -1395,7 +1475,24 @@
       switchQueued: false,
       slideQueued: false,
       teamPressQueued: false,
+      isChargingShoot: false,
+      isChargingPass: false,
+      shootCharge: 0,
+      passCharge: 0,
     };
+    
+    function updatePowerBarUI(charge) {
+        const container = $("power-bar-container");
+        const fill = $("power-bar-fill");
+        if (!container || !fill) return;
+        if (charge > 0) {
+            container.style.opacity = 1;
+            fill.style.width = (charge * 100) + "%";
+        } else {
+            container.style.opacity = 0;
+            fill.style.width = "0%";
+        }
+    }
 
     function $(id) {
       return document.getElementById(id);
@@ -1480,26 +1577,33 @@
     function renderSquadPreview() {
       const pitch = $("squad-pitch");
       if (!pitch) return;
+      
+      pitch.className = "flex flex-wrap gap-4 p-4 justify-center items-center overflow-y-auto max-h-[60vh] mt-4 z-10 w-full";
       pitch.innerHTML = "";
 
       SQUAD_PREVIEW.forEach((player, index) => {
-        const node = document.createElement("div");
-        node.className = "squad-node";
-        node.style.left = player.x + "%";
-        node.style.top = player.y + "%";
-        node.style.animationDelay = (index * 24) + "ms";
+        const rating = player.role === "GK" ? 89 : 85 + Math.floor(Math.random() * 5);
+        const pace = 80 + Math.floor(Math.random() * 15);
+        const sho = 75 + Math.floor(Math.random() * 18);
+        const pas = 78 + Math.floor(Math.random() * 14);
 
-        const avatar = document.createElement("div");
-        avatar.className = "squad-avatar" + (player.role === "GK" ? " gk" : "");
-        avatar.textContent = initialsFromName(player.name);
+        const card = document.createElement("div");
+        card.className = "player-card";
+        card.style.animationDelay = (index * 40) + "ms";
 
-        const label = document.createElement("div");
-        label.className = "squad-label";
-        label.textContent = player.role + "  " + player.name;
+        card.innerHTML = `
+          <div class="card-rating">${rating}</div>
+          <div class="card-pos">${player.role}</div>
+          <div class="card-img-placeholder"></div>
+          <div class="card-name">${player.name}</div>
+          <div class="card-stats">
+            <span>PAC ${pace}</span>
+            <span>SHO ${sho}</span>
+            <span>PAS ${pas}</span>
+          </div>
+        `;
 
-        node.appendChild(avatar);
-        node.appendChild(label);
-        pitch.appendChild(node);
+        pitch.appendChild(card);
       });
     }
 
@@ -2503,6 +2607,7 @@
           radius: CFG.playerRadius,
           recentTouch: 0,
           sprinting: false,
+          stamina: 1.0,
         };
       });
       updateHumanIndicators();
@@ -2556,7 +2661,7 @@
       const material = new THREE.LineBasicMaterial({
         color: 0x8de4ff,
         transparent: true,
-        opacity: renderProfile && renderProfile.mobileLike ? 0.18 : 0.34,
+        opacity: 0.85,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       });
@@ -2594,10 +2699,10 @@
         trail.line.geometry.setFromPoints(trail.points);
 
         const ballSpeed = Math.hypot(ball.velocity.x, ball.velocity.z);
-        trail.line.visible = ballSpeed > 6 || !ball.owner;
+        trail.line.visible = ballSpeed > 10 || !ball.owner;
         trail.line.material.opacity = Math.min(
-          renderProfile && renderProfile.mobileLike ? 0.22 : 0.38,
-          0.08 + ballSpeed * 0.008
+          0.85,
+          0.2 + ballSpeed * 0.02
         );
       }
     }
@@ -2747,6 +2852,23 @@
       const side = new THREE.Vector3(-facing.z, 0, facing.x);
       const control = clamp01(player.stats.control);
       const rawTouch = Math.max(0, (incomingSpeed - 6) / 30) * (1 - control) * CFG.touchNoise;
+
+      if (rawTouch > 0.45) {
+        const bouncePower = rawTouch * 18;
+        const pushDir = facing.clone().add(side.clone().multiplyScalar((Math.random() - 0.5) * 1.5)).normalize();
+        player.controlChaos = 1;
+        player.cooldown = Math.max(player.cooldown, 0.35);
+        if (player.team === "p1") gameState.teamPressTimer = 0;
+        
+        // The ball deflects off the player's foot
+        ball.owner = null;
+        ball.velocity.set(pushDir.x * bouncePower, 1.2 + rawTouch * 2, pushDir.z * bouncePower);
+        ball.mesh.position.set(player.mesh.position.x + facing.x * 0.5, 0.8, player.mesh.position.z + facing.z * 0.5);
+        ball.spinY = (Math.random() - 0.5) * 2;
+        ball.curl = ball.spinY;
+        return;
+      }
+
       const sideJitter = (Math.random() * 2 - 1) * rawTouch * 0.75;
       const frontJitter = rawTouch * 0.44;
       const touchLen = (player.role === "GK" ? 0.92 : 1.02) + frontJitter;
@@ -2771,6 +2893,7 @@
 
     function releaseBall(player, horizontalVelocity, verticalVelocity, spin = 0) {
       if (!ball || !player) return;
+      SFX.init(); SFX.kick();
       player.hasBall = false;
       if (ball.owner === player) ball.owner = null;
       ball.velocity.set(horizontalVelocity.x, verticalVelocity, horizontalVelocity.z);
@@ -2810,18 +2933,23 @@
     function performDash(player) {
       if (!player || mode !== MODES.PLAYING || player.dashCooldown > 0 || player.cooldown > 0.08) return;
       const facing = getFacingVector(player);
+      
+      if (player.hasBall && ball && ball.owner === player) {
+        ball.owner = null;
+        player.hasBall = false;
+        const kickPower = 38 + player.stats.pace * 0.4;
+        ball.velocity.set(facing.x * kickPower, 1.2, facing.z * kickPower);
+        ball.spinY += (Math.random() * 2 - 1) * 0.8;
+      }
+
       const burst = player.stats.pace * 0.88 + 8;
       player.velocity.x += facing.x * burst;
       player.velocity.z += facing.z * burst;
       player.dashTimer = CFG.dashDurationSec;
       player.dashCooldown = CFG.dashCooldownSec;
       player.cooldown = Math.max(player.cooldown, 0.14);
-      player.controlChaos = Math.min(1, player.controlChaos + (player.hasBall ? 0.16 : 0.04));
+      player.controlChaos = Math.min(1, player.controlChaos + 0.04);
       player.thinkCooldown = Math.max(player.thinkCooldown, 0.2);
-
-      if (player.hasBall && ball && ball.owner === player) {
-        ball.spinY += (Math.random() * 2 - 1) * 0.8;
-      }
 
       if (!player.hasBall && ball && !ball.owner) {
         const looseDistance = horizontalDistance(player.mesh.position, ball.mesh.position);
@@ -2836,22 +2964,16 @@
       }
     }
 
-    function performSkillMove(player) {
+    function performSkillMove(player, type = "shimmy") {
       if (!player || mode !== MODES.PLAYING || !player.hasBall || player.skillCooldown > 0) return;
-      const facing = getFacingVector(player);
-      const side = new THREE.Vector3(-facing.z, 0, facing.x);
-      const sideSign = inputState.left ? -1 : inputState.right ? 1 : (Math.random() < 0.5 ? -1 : 1);
-      const burst = (player.stats.agility * 7.2 + 2.2) * sideSign;
-      player.velocity.x += side.x * burst;
-      player.velocity.z += side.z * burst;
+      player.skillType = type;
       player.skillTimer = CFG.skillDurationSec;
       player.skillCooldown = CFG.skillCooldownSec;
       player.cooldown = Math.max(player.cooldown, 0.12);
       player.controlChaos = Math.max(0, player.controlChaos - 0.2);
       if (ball) {
-        ball.spinY += sideSign * (0.85 + player.stats.control * 0.7);
+        ball.spinY += (Math.random() < 0.5 ? -1 : 1) * (0.85 + player.stats.control * 0.7);
       }
-
       if (player.isHuman) {
         gameState.cameraKick = Math.min(1, gameState.cameraKick + 0.05);
       }
@@ -2900,6 +3022,7 @@
 
     function performSteal(player) {
       if (!player || mode !== MODES.PLAYING || player.stealCooldown > 0) return;
+      SFX.init(); SFX.tackle();
       player.stealTimer = CFG.stealCooldownSec;
       player.stealCooldown = CFG.stealCooldownSec;
       player.cooldown = Math.max(player.cooldown, 0.18);
@@ -2931,12 +3054,13 @@
       }
       gameState.duelPulse = Math.max(gameState.duelPulse, won ? 0.24 : 0.14);
       if (player.isHuman) {
-        gameState.cameraKick = Math.min(1, gameState.cameraKick + (won ? 0.12 : 0.06));
+        gameState.cameraKick += won ? 0.5 : 0.2;
       }
     }
 
     function performSlideTackle(player) {
       if (!player || mode !== MODES.PLAYING || player.slideCooldown > 0 || player.cooldown > 0.2) return false;
+      SFX.init(); SFX.tackle();
       player.slideTimer = CFG.slideDurationSec;
       player.slideCooldown = CFG.slideCooldownSec;
       player.cooldown = Math.max(player.cooldown, 0.28);
@@ -2978,7 +3102,7 @@
       return won;
     }
 
-    function performShoot(player) {
+    function performShoot(player, charge = 0.5, type = "standard") {
       if (!player || mode !== MODES.PLAYING || player.cooldown > 0) return;
 
       if (!player.hasBall) {
@@ -2991,18 +3115,31 @@
       const facing = getFacingVector(player);
       const goalDirection = new THREE.Vector3(-player.mesh.position.x * 0.08, 0, player.team === "p1" ? -1 : 1).normalize();
       const shotDirection = facing.clone().lerp(goalDirection, player.isHuman ? 0.38 : 0.58).normalize();
-      const sideSpin = (player.velocity.x * shotDirection.z - player.velocity.z * shotDirection.x) * 0.045;
+      let sideSpin = (player.velocity.x * shotDirection.z - player.velocity.z * shotDirection.x) * 0.045;
 
-      const speed = player.role === "GK" ? 44 : 36 + player.stats.control * 2.2;
-      const lift = player.role === "GK" ? 12.2 : 7.2 + player.stats.control * 0.8;
+      let powerMultiplier = 0.5 + charge;
+      let speed = (player.role === "GK" ? 44 : 36 + player.stats.control * 2.2) * powerMultiplier;
+      let lift = (player.role === "GK" ? 12.2 : 5.2 + player.stats.control * 0.8 + charge * 8.0);
+
+      if (type === "finesse") {
+        speed *= 0.72;
+        lift *= 0.6;
+        sideSpin += (shotDirection.x < 0 ? 0.8 : -0.8); // Add huge curl
+      } else if (type === "power") {
+        speed *= 1.45;
+        lift *= 0.85;
+      } else if (type === "chip") {
+        speed *= 0.55;
+        lift *= 3.8;
+      }
 
       releaseBall(player, shotDirection.multiplyScalar(speed), lift, sideSpin);
       player.cooldown = 0.42;
       player.thinkCooldown = 0.75;
-      gameState.cameraKick = Math.min(1, gameState.cameraKick + (player.isHuman ? 0.25 : 0.12));
+      gameState.cameraKick += player.isHuman ? 0.6 : 0.3;
     }
 
-    function performPass(player) {
+    function performPass(player, charge = 0.5, type = "standard") {
       if (!player || mode !== MODES.PLAYING || !player.hasBall || player.cooldown > 0) return;
 
       const target = findPassTarget(player);
@@ -3017,16 +3154,26 @@
         }
       }
 
+      const powerMultiplier = 0.6 + charge * 0.8;
       const side = new THREE.Vector3(-passDirection.z, 0, passDirection.x);
       const spin = side.dot(player.velocity) * 0.035;
-      const speed = player.role === "GK" ? 31 : 24 + player.stats.control * 2.4;
-      const lift = player.role === "GK" ? 5.2 : 2.2 + (target ? 0.45 : 0.2);
+      let speed = (player.role === "GK" ? 31 : 24 + player.stats.control * 2.4) * powerMultiplier;
+      let lift = (player.role === "GK" ? 5.2 : 1.2 + charge * 5.0 + (target ? 0.45 : 0.2));
+
+      if (type === "driven") {
+        speed *= 1.55;
+        lift = 0.1;
+      } else if (type === "lob") {
+        speed *= 1.15;
+        lift *= 3.1;
+      }
+
       releaseBall(player, passDirection.multiplyScalar(speed), lift, spin);
 
       player.cooldown = 0.34;
       player.thinkCooldown = 0.62;
       if (player.isHuman) {
-        gameState.cameraKick = Math.min(1, gameState.cameraKick + 0.09);
+        gameState.cameraKick += 0.1 + charge * 0.2;
       }
     }
 
@@ -3136,9 +3283,20 @@
       const fieldHalfL = CFG.fieldL / 2;
 
       if (player.role === "GK") {
-        const targetX = Math.max(-CFG.goalWidth / 2 + 0.9, Math.min(CFG.goalWidth / 2 - 0.9, ball.mesh.position.x * 0.72));
         const homeGoalZ = player.team === "p1" ? fieldHalfL - 1.6 : -fieldHalfL + 1.6;
-        desired.set(targetX - player.mesh.position.x, 0, homeGoalZ - player.mesh.position.z);
+        let targetX = Math.max(-CFG.goalWidth / 2 + 0.9, Math.min(CFG.goalWidth / 2 - 0.9, ball.mesh.position.x * 0.72));
+        let targetZ = homeGoalZ;
+
+        if (Math.abs(ball.velocity.z) > 6) {
+          const timeToReach = Math.abs((homeGoalZ - ball.mesh.position.z) / ball.velocity.z);
+          if (timeToReach > 0 && timeToReach < 1.25) {
+            const interceptX = ball.mesh.position.x + (ball.velocity.x * timeToReach);
+            targetX = Math.max(-CFG.goalWidth / 2 + 0.5, Math.min(CFG.goalWidth / 2 - 0.5, interceptX));
+            if (timeToReach < 0.6) targetZ = homeGoalZ - (Math.sign(homeGoalZ) * 2.5);
+          }
+        }
+
+        desired.set(targetX - player.mesh.position.x, 0, targetZ - player.mesh.position.z);
         return desired;
       }
 
@@ -3197,8 +3355,23 @@
           if (inputState.sprint) {
             targetSpeed = Math.max(targetSpeed, CFG.sprintSpeed);
             player.sprinting = true;
-            if (!player.hasBall && player.stealCooldown <= 0 && player.cooldown <= 0.12) {
-              performSteal(player);
+            if (!player.hasBall) {
+              const carrier = players.find(p => p.hasBall && p.team !== player.team);
+              if (carrier) {
+                const toGoal = new THREE.Vector3(-carrier.mesh.position.x * 0.1, 0, carrier.team === "p1" ? -1 : 1).normalize();
+                const containPoint = carrier.mesh.position.clone().add(toGoal.multiplyScalar(CFG.tackleRange * 1.5));
+                if (horizontalDistance(player.mesh.position, containPoint) > 0.8) {
+                   desired.set(containPoint.x - player.mesh.position.x, 0, containPoint.z - player.mesh.position.z).normalize();
+                   targetSpeed = Math.min(targetSpeed, carrier.stats.pace * 1.2 + 2);
+                } else {
+                   const toCarrier = carrier.mesh.position.clone().sub(player.mesh.position).normalize();
+                   desired.set(toCarrier.x, 0, toCarrier.z);
+                   targetSpeed = carrier.stats.pace * 0.9;
+                }
+                player.sprinting = false; 
+              } else if (player.stealCooldown <= 0 && player.cooldown <= 0.12) {
+                performSteal(player);
+              }
             }
           }
           if (inputState.skill && player.hasBall) {
@@ -3220,7 +3393,15 @@
 
         if (player.dashTimer > 0) {
           targetSpeed += 8.6 + player.stats.pace * 0.4;
+          player.stamina -= dt * 0.15;
+        } else if (player.sprinting && targetSpeed > 10) {
+          player.stamina -= dt * 0.05;
+        } else {
+          player.stamina += dt * 0.03;
         }
+        player.stamina = Math.max(0, Math.min(1, player.stamina));
+        
+        targetSpeed *= (0.6 + 0.4 * player.stamina);
 
         if (desired.lengthSq() > 0.0008) {
           desired.normalize();
@@ -3229,9 +3410,12 @@
           const blend = clamp01(dt * accelRate / Math.max(2, targetSpeed));
           player.velocity.lerp(targetVelocity, blend);
 
-          const lookPoint = player.mesh.position.clone().add(player.velocity);
-          lookPoint.y = 1.2;
-          player.mesh.lookAt(lookPoint);
+          const lookPoint = player.mesh.position.clone().sub(player.velocity);
+          lookPoint.y = player.mesh.position.y;
+          const m = new THREE.Matrix4().lookAt(player.mesh.position, lookPoint, new THREE.Vector3(0, 1, 0));
+          const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m);
+          const turnSpd = dt * (6.0 + player.stats.agility * 4.0);
+          player.mesh.quaternion.slerp(targetQuat, clamp01(turnSpd));
         } else {
           const stopBlend = clamp01(dt * (16 + player.stats.accel * 0.55));
           player.velocity.lerp(new THREE.Vector3(), stopBlend);
@@ -3248,9 +3432,31 @@
         if (player.skillTimer > 0 && player.hasBall) {
           const facing = getFacingVector(player);
           const lateral = new THREE.Vector3(-facing.z, 0, facing.x);
-          const shimmy = Math.sin(player.animPhase * 2.4) * (0.34 + player.stats.agility * 0.55);
-          player.velocity.x += lateral.x * shimmy;
-          player.velocity.z += lateral.z * shimmy;
+          
+          if (player.skillType === "roulette") {
+            const progress = 1 - (player.skillTimer / CFG.skillDurationSec);
+            const spinQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), progress * Math.PI * 2);
+            player.mesh.quaternion.multiply(spinQuat);
+            targetSpeed *= 0.6;
+          } else if (player.skillType === "stepover") {
+            const shimmy = Math.sin(player.animPhase * 8.0) * (0.6 + player.stats.agility * 0.5);
+            player.velocity.x += lateral.x * shimmy;
+            player.velocity.z += lateral.z * shimmy;
+            targetSpeed *= 1.35;
+          } else if (player.skillType === "heel-to-heel") {
+            const progress = 1 - (player.skillTimer / CFG.skillDurationSec);
+            if (progress < 0.4) {
+              targetSpeed *= 0.2; 
+            } else {
+              targetSpeed *= 1.8; 
+              player.velocity.x += facing.x * 2.5;
+              player.velocity.z += facing.z * 2.5;
+            }
+          } else {
+            const shimmy = Math.sin(player.animPhase * 2.4) * (0.34 + player.stats.agility * 0.55);
+            player.velocity.x += lateral.x * shimmy;
+            player.velocity.z += lateral.z * shimmy;
+          }
         }
 
         const planarSpeed = Math.hypot(player.velocity.x, player.velocity.z);
@@ -3385,8 +3591,17 @@
 
     function registerGoal(team) {
       if (team !== "p1" && team !== "cpu") return;
+      SFX.init(); SFX.goal();
       gameState.scores[team] += 1;
       gameState.goalPause = CFG.goalPauseSec;
+      gameState.cameraKick = 3.5;
+      
+      const shell = document.getElementById("game-shell");
+      if (shell) {
+        shell.classList.remove("shake-intense");
+        void shell.offsetWidth;
+        shell.classList.add("shake-intense");
+      }
 
       ball.owner = null;
       ball.velocity.set(0, 0, 0);
@@ -3407,7 +3622,12 @@
         const facing = getFacingVector(owner);
         const side = new THREE.Vector3(-facing.z, 0, facing.x);
         const ownerSpeed = Math.hypot(owner.velocity.x, owner.velocity.z);
-        const spacing = (owner.role === "GK" ? 0.92 : 1.06) + ownerSpeed * 0.02 + owner.controlChaos * 0.55 + (owner.dashTimer > 0 ? 0.44 : 0);
+        const spacing = (owner.role === "GK" ? 0.92 : 1.06) 
+          + ownerSpeed * 0.02 
+          + owner.controlChaos * 0.55 
+          + (owner.dashTimer > 0 ? 0.44 : 0)
+          + (ownerSpeed / 20) * 1.6;
+
         const shimmy = owner.skillTimer > 0 ? Math.sin(owner.animPhase * 2.3) * 0.32 : 0;
         const target = new THREE.Vector3(
           owner.mesh.position.x + facing.x * spacing + side.x * shimmy,
@@ -3424,7 +3644,7 @@
         ball.spinY *= Math.max(0, 1 - dt * 2.1);
 
         const leash = horizontalDistance(ball.mesh.position, owner.mesh.position);
-        if (leash > 2.34 + owner.stats.control * 0.32) {
+        if (leash > 2.34 + owner.stats.control * 0.32 + (ownerSpeed / 20) * 1.6) {
           const poke = facing.clone().multiplyScalar(8 + ownerSpeed * 0.32);
           releaseBall(owner, poke, 0.9, (Math.random() * 2 - 1) * 1.1);
         }
@@ -3444,6 +3664,19 @@
         ball.velocity.z += lateralZ * ball.spinY * magnus;
       }
       ball.mesh.position.add(ball.velocity.clone().multiplyScalar(dt));
+      
+      if (horizSpeed > 0.01) {
+          const rollAxis = new THREE.Vector3(-ball.velocity.z, 0, ball.velocity.x).normalize();
+          const rollAngle = (horizSpeed * dt) / 0.58;
+          const rollQuat = new THREE.Quaternion().setFromAxisAngle(rollAxis, rollAngle);
+          
+          if (Math.abs(ball.spinY) > 0.01) {
+              const spinQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ball.spinY * dt * 4);
+              rollQuat.multiply(spinQuat);
+          }
+          
+          ball.mesh.quaternion.premultiply(rollQuat);
+      }
 
       if (ball.mesh.position.y < 0.72) {
         ball.mesh.position.y = 0.72;
@@ -3491,8 +3724,20 @@
     }
 
     function updateCamera(dt) {
-      if (!camera || !ball) return;
+      if (!camera) return;
       const profile = renderProfile || resolveRenderProfile();
+
+      if (mode === MODES.TITLE || mode === MODES.SQUAD) {
+        const time = performance.now() * 0.0001;
+        const radius = 32;
+        const cx = Math.sin(time) * radius;
+        const cz = Math.cos(time) * radius;
+        camera.position.lerp(new THREE.Vector3(cx, 16, cz), Math.min(1, dt * 1.5));
+        camera.lookAt(0, 2, 0);
+        return;
+      }
+
+      if (!ball) return;
       const focus = ball.owner ? ball.owner.mesh.position : ball.mesh.position;
       const pace = Math.min(1, Math.hypot(ball.velocity.x, ball.velocity.z) / 28);
       gameState.cameraKick = Math.max(0, gameState.cameraKick - dt * (profile.mobileLike ? 1.8 : 2.3));
@@ -3501,11 +3746,12 @@
       const desired = new THREE.Vector3(
         focus.x * 0.2 + sway + ball.velocity.x * 0.008,
         profile.cameraHeight - pace * 2.2 + kick * 0.8,
-        focus.z + profile.cameraDistance - pace * 2.8 - kick * 1.1
+        focus.z + profile.cameraDistance - pace * 2.8 - kick * 1.5
       );
-      camera.position.lerp(desired, Math.min(1, dt * (profile.mobileLike ? 3.1 : 3.6)));
-      camera.lookAt(focus.x * 0.18 + ball.velocity.x * 0.004, 1.1 + kick * 0.12, focus.z * 0.66 - pace * 0.66);
-      const targetRoll = (focus.x / (CFG.fieldW * 0.5)) * 0.004 + ball.velocity.x * 0.0002;
+      camera.position.lerp(desired, Math.min(1, dt * (profile.mobileLike ? 3.1 : 3.8)));
+      const kickSway = (Math.random() - 0.5) * kick * 0.15;
+      camera.lookAt(focus.x * 0.18 + ball.velocity.x * 0.004, 1.1 + kick * 0.12 + kickSway, focus.z * 0.66 - pace * 0.66);
+      const targetRoll = (focus.x / (CFG.fieldW * 0.5)) * 0.004 + ball.velocity.x * 0.0002 + kickSway * 0.5;
       camera.rotation.z = THREE.MathUtils.lerp(camera.rotation.z, targetRoll, Math.min(1, dt * 1.6));
     }
 
@@ -3543,8 +3789,16 @@
         inputState.teamPressQueued = false;
       }
       if (human) {
+        if (inputState.isChargingShoot) {
+            inputState.shootCharge = Math.min(1, inputState.shootCharge + dt * 1.5);
+            updatePowerBarUI(inputState.shootCharge);
+        } else if (inputState.isChargingPass) {
+            inputState.passCharge = Math.min(1, inputState.passCharge + dt * 2.5);
+            updatePowerBarUI(inputState.passCharge);
+        }
+
         if (inputState.skillQueued) {
-          performSkillMove(human);
+          performSkillMove(human, inputState.skillType);
           inputState.skillQueued = false;
         }
         if (inputState.dashQueued) {
@@ -4029,11 +4283,47 @@
           labelCtx.fill();
         }
 
+        const stamW = boxW;
+        const stamH = 3;
+        const stamX = boxX;
+        const stamY = boxY + boxH + 2;
+        labelCtx.fillStyle = "rgba(0,0,0,0.6)";
+        labelCtx.fillRect(stamX, stamY, stamW, stamH);
+        
+        const stamColor = player.stamina > 0.5 ? "#55efc4" : (player.stamina > 0.25 ? "#fdcb6e" : "#ff7675");
+        labelCtx.fillStyle = stamColor;
+        labelCtx.fillRect(stamX, stamY, stamW * player.stamina, stamH);
+
         labelCtx.fillStyle = "#eef8ff";
         labelCtx.textAlign = "center";
         labelCtx.textBaseline = "middle";
         labelCtx.fillText(text, point.x, boxY + boxH * 0.53);
       });
+    }
+
+    let lastHasBallState = null;
+    function updateControlLabels() {
+      if (mode !== MODES.PLAYING) return;
+      const human = getHumanPlayer();
+      const hasBall = human ? human.hasBall : false;
+      if (hasBall === lastHasBallState) return;
+      lastHasBallState = hasBall;
+
+      if (hasBall) {
+        $("b-shoot").textContent = "SHOOT";
+        $("b-pass").textContent = "PASS";
+        $("b-skill").textContent = "THROUGH";
+        $("b-sprint").textContent = "SPRINT";
+        $("b-dash").textContent = "SKILL";
+        $("b-steal").textContent = "CALL";
+      } else {
+        $("b-shoot").textContent = "CLEAR";
+        $("b-pass").textContent = "SWITCH";
+        $("b-skill").textContent = "TACKLE";
+        $("b-sprint").textContent = "JOCKEY";
+        $("b-dash").textContent = "2nd DEF";
+        $("b-steal").textContent = "PRESS";
+      }
     }
 
     function renderFrame() {
@@ -4046,6 +4336,7 @@
       }
       renderRadar();
       renderPlayerLabels();
+      updateControlLabels();
     }
 
     function frameLoop(now) {
@@ -4333,12 +4624,27 @@
       const skillButton = $("b-skill");
       const stealButton = $("b-steal");
 
-      const doShoot = (event) => {
+      const bindHold = (id, onDown, onUp) => {
+        const node = $(id);
+        if (!node) return;
+        node.addEventListener("pointerdown", onDown);
+        node.addEventListener("pointerup", onUp);
+        node.addEventListener("pointercancel", onUp);
+        node.addEventListener("pointerleave", (e) => { 
+          if (e.pointerType === "mouse" && e.buttons !== 0) return;
+          onUp(e); 
+        });
+      };
+
+      const doShootDown = (event) => {
         if (event) event.preventDefault();
         const human = getHumanPlayer();
         if (!human) return;
         if (human.hasBall) {
-          performShoot(human);
+          if (!inputState.isChargingShoot) {
+            inputState.isChargingShoot = true;
+            inputState.shootCharge = 0;
+          }
           return;
         }
         if (ball && ball.owner && ball.owner.team !== human.team) {
@@ -4348,14 +4654,39 @@
         performSteal(human);
       };
 
-      const doPass = (event) => {
+      const doShootUp = (event) => {
+        if (event) event.preventDefault();
+        if (inputState.isChargingShoot) {
+          const human = getHumanPlayer();
+          if (human && human.hasBall) performShoot(human, inputState.shootCharge);
+          inputState.isChargingShoot = false;
+          inputState.shootCharge = 0;
+          updatePowerBarUI(0);
+        }
+      };
+
+      const doPassDown = (event) => {
         if (event) event.preventDefault();
         const human = getHumanPlayer();
         if (!human) return;
         if (human.hasBall) {
-          performPass(human);
+          if (!inputState.isChargingPass) {
+            inputState.isChargingPass = true;
+            inputState.passCharge = 0;
+          }
         } else {
           performSwitchPlayer("manual");
+        }
+      };
+
+      const doPassUp = (event) => {
+        if (event) event.preventDefault();
+        if (inputState.isChargingPass) {
+          const human = getHumanPlayer();
+          if (human && human.hasBall) performPass(human, inputState.passCharge);
+          inputState.isChargingPass = false;
+          inputState.passCharge = 0;
+          updatePowerBarUI(0);
         }
       };
 
@@ -4388,8 +4719,27 @@
         inputState.teamPressQueued = true;
       };
 
-      shootButton.addEventListener("pointerdown", doShoot);
-      passButton.addEventListener("pointerdown", doPass);
+      bindSwipeable(
+        "b-shoot", 
+        "isShootButtonDown", 
+        doShootDown, 
+        () => triggerShoot("chip"),       // up
+        () => triggerShoot("finesse"),    // down
+        () => triggerShoot("standard"),   // left (none)
+        () => triggerShoot("power"),      // right
+        () => triggerShoot("standard")    // default
+      );
+      
+      bindSwipeable(
+        "b-pass", 
+        "isPassButtonDown", 
+        doPassDown, 
+        () => triggerPass("lob"),         // up
+        () => triggerPass("standard"),    // down 
+        () => triggerPass("standard"),    // left
+        () => triggerPass("driven"),      // right
+        () => triggerPass("standard")     // default
+      );
       dashButton.addEventListener("pointerdown", doDash);
       skillButton.addEventListener("pointerdown", doSkill);
       stealButton.addEventListener("pointerdown", doSteal);
@@ -4416,25 +4766,45 @@
 
     function setupJoystick() {
       const zone = $("joy-zone");
+      const base = $("joy-base");
       const stick = $("joy-stick");
       const limit = 44;
       let activePointer = null;
+      let originX = 0;
+      let originY = 0;
+
+      function spawnStick(clientX, clientY) {
+        originX = clientX;
+        originY = clientY;
+        base.style.left = originX + "px";
+        base.style.top = originY + "px";
+        stick.style.left = originX + "px";
+        stick.style.top = originY + "px";
+        base.style.opacity = "1";
+        stick.style.opacity = "1";
+        inputState.joyX = 0;
+        inputState.joyZ = 0;
+        stick.style.transform = "translate(-50%, -50%) scale(1.1)";
+      }
 
       function applyStick(clientX, clientY) {
-        const rect = zone.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-
-        let dx = clientX - centerX;
-        let dy = clientY - centerY;
+        let dx = clientX - originX;
+        let dy = clientY - originY;
         const distance = Math.hypot(dx, dy);
+
         if (distance > limit) {
-          const scale = limit / distance;
-          dx *= scale;
-          dy *= scale;
+          const over = distance - limit;
+          const angle = Math.atan2(dy, dx);
+          originX += Math.cos(angle) * over;
+          originY += Math.sin(angle) * over;
+          base.style.left = originX + "px";
+          base.style.top = originY + "px";
+          
+          dx = Math.cos(angle) * limit;
+          dy = Math.sin(angle) * limit;
         }
 
-        stick.style.transform = "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px))";
+        stick.style.transform = "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px)) scale(1.1)";
         inputState.joyX = dx / limit;
         inputState.joyZ = dy / limit;
       }
@@ -4442,14 +4812,18 @@
       function resetStick() {
         inputState.joyX = 0;
         inputState.joyZ = 0;
-        stick.style.transform = "translate(-50%, -50%)";
+        base.style.opacity = "0";
+        stick.style.opacity = "0";
+        stick.style.transform = "translate(-50%, -50%) scale(1)";
       }
 
       zone.addEventListener("pointerdown", (event) => {
         event.preventDefault();
+        if (activePointer !== null) return;
+        SFX.init();
         activePointer = event.pointerId;
         zone.setPointerCapture(activePointer);
-        applyStick(event.clientX, event.clientY);
+        spawnStick(event.clientX, event.clientY);
       });
 
       zone.addEventListener("pointermove", (event) => {
@@ -4473,6 +4847,7 @@
 
     function setupKeyboardAndMouse() {
       window.addEventListener("keydown", (event) => {
+        SFX.init();
         const key = event.key.toLowerCase();
 
         if (key === "w" || event.key === "ArrowUp") inputState.up = true;
@@ -4498,7 +4873,10 @@
             const human = getHumanPlayer();
             if (!human) return;
             if (human.hasBall) {
-              performShoot(human);
+              if (!inputState.isChargingShoot) {
+                  inputState.isChargingShoot = true;
+                  inputState.shootCharge = 0;
+              }
             } else {
               inputState.slideQueued = true;
             }
@@ -4511,7 +4889,10 @@
             const human = getHumanPlayer();
             if (!human) return;
             if (human.hasBall) {
-              performPass(human);
+              if (!inputState.isChargingPass) {
+                  inputState.isChargingPass = true;
+                  inputState.passCharge = 0;
+              }
             } else {
               inputState.switchQueued = true;
             }
@@ -4566,6 +4947,30 @@
         if (key === "d" || event.key === "ArrowRight") inputState.right = false;
         if (event.key === "Shift") inputState.sprint = false;
         if (key === "q") inputState.skill = false;
+
+        if (event.code === "Space") {
+            if (inputState.isChargingShoot) {
+                const human = getHumanPlayer();
+                if (human && human.hasBall) {
+                    performShoot(human, inputState.shootCharge);
+                }
+                inputState.isChargingShoot = false;
+                inputState.shootCharge = 0;
+                updatePowerBarUI(0);
+            }
+        }
+
+        if (key === "z") {
+            if (inputState.isChargingPass) {
+                const human = getHumanPlayer();
+                if (human && human.hasBall) {
+                    performPass(human, inputState.passCharge);
+                }
+                inputState.isChargingPass = false;
+                inputState.passCharge = 0;
+                updatePowerBarUI(0);
+            }
+        }
       });
 
       window.addEventListener("mousedown", (event) => {
@@ -4680,6 +5085,36 @@
       return JSON.stringify(payload);
     }
 
+    function setupRipples() {
+      const createRipple = (event) => {
+        const button = event.currentTarget;
+        const ripple = document.createElement("span");
+        const rect = button.getBoundingClientRect();
+        
+        let clientX = event.clientX;
+        let clientY = event.clientY;
+        if (event.type.startsWith("touch") && event.touches && event.touches.length > 0) {
+          clientX = event.touches[0].clientX;
+          clientY = event.touches[0].clientY;
+        }
+        
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        
+        ripple.style.left = x + "px";
+        ripple.style.top = y + "px";
+        ripple.className = "ripple-effect";
+        
+        button.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      };
+
+      document.querySelectorAll("button").forEach(btn => {
+        btn.classList.add("ripple-target");
+        btn.addEventListener("pointerdown", createRipple);
+      });
+    }
+
     function setupTestingHooks() {
       window.render_game_to_text = renderGameToText;
 
@@ -4717,6 +5152,7 @@
       setupUiHandlers();
       setupJoystick();
       setupKeyboardAndMouse();
+      setupRipples();
       setupTestingHooks();
       renderSquadPreview();
       updateHud();
