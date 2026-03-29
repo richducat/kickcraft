@@ -3320,7 +3320,7 @@ const SFX = {
           const blend = clamp01(dt * accelRate / Math.max(2, targetSpeed));
           player.velocity.lerp(targetVelocity, blend);
 
-          const lookPoint = player.mesh.position.clone().add(player.velocity);
+          const lookPoint = player.mesh.position.clone().sub(player.velocity);
           lookPoint.y = player.mesh.position.y;
           const m = new THREE.Matrix4().lookAt(player.mesh.position, lookPoint, new THREE.Vector3(0, 1, 0));
           const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m);
